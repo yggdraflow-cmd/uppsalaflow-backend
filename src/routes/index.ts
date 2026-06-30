@@ -1,0 +1,27 @@
+import { Router } from "express";
+import { appointmentsRoutes } from "../modules/appointments/appointments.routes";
+import { authRoutes } from "../modules/auth/auth.routes";
+import { businessesRoutes } from "../modules/businesses/businesses.routes";
+import { clientsRoutes } from "../modules/clients/clients.routes";
+import { dashboardRoutes } from "../modules/dashboard/dashboard.routes";
+import { professionalsRoutes } from "../modules/professionals/professionals.routes";
+import { servicesRoutes } from "../modules/services/services.routes";
+import { usersRoutes } from "../modules/users/users.routes";
+
+export const routes = Router();
+
+routes.get("/health", (request, response) => {
+  return response.json({
+    status: "ok",
+    app: "BeautyFlow Backend",
+  });
+});
+
+routes.use("/auth", authRoutes);
+routes.use("/users", usersRoutes);
+routes.use("/businesses", businessesRoutes);
+routes.use("/clients", clientsRoutes);
+routes.use("/services", servicesRoutes);
+routes.use("/professionals", professionalsRoutes);
+routes.use("/appointments", appointmentsRoutes);
+routes.use("/dashboard", dashboardRoutes);

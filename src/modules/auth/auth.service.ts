@@ -1,0 +1,88 @@
+import bcrypt from "bcryptjs";
+import jwt, { SignOptions } from "jsonwebtoken";
+import { UserRole } from "@prisma/client";
+import { prisma } from "../../database/prisma";
+import { env } from "../../config/env";
+import { AppError } from "../../middlewares/error.middleware";
+
+type RegisterInput = {
+  name: string;
+  email: string;
+  password: string;
+};
+
+type LoginInput = {
+  email: string;
+  password: string;
+};
+
+function createToken(userId: string, role: UserRole) {
+  const options: SignOptions = {
+    subject: userId,
+    expiresIn: env.jwtExpiresIn as SignOptions["expiresIn"],
+  };
+
+  return jwt.sign({ role }, env.jwtSecret, options);
+}
+
+export const authService = {
+  async register(data: RegisterInput) {
+    const emailAlreadyExists = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (emailAlreadyExists) {
+      throw new AppError("Já existe um usuário com este e-mail.", 409);
+    }
+
+    const passwordHash = await bcrypt.hash(data.password, 8);
+
+    const user = await prisma.user.create({
+      data: {
+        name: data.name,
+        email: data.email,
+        passwordHash,
+        role: "OWNER",
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    const token = createToken(user.id, user.role);
+
+    return { user, token };
+  },
+
+  async login(data: LoginInput) {
+    const user = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (!user) {
+      throw new AppError("E-mail ou senha inválidos.", 401);
+    }
+
+    const passwordMatches = await bcrypt.compare(data.password, user.passwordHash);
+
+    if (!passwordMatches) {
+      throw new AppError("E-mail ou senha inválidos.", 401);
+    }
+
+    const token = createToken(user.id, user.role);
+
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      token,
+    };
+  },
+};
