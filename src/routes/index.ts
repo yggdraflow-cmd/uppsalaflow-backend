@@ -13,7 +13,7 @@ export const routes = Router();
 routes.get("/health", (request, response) => {
   return response.json({
     status: "ok",
-    app: "BeautyFlow Backend",
+    app: "Uppsalaflow Backend",
   });
 });
 
