@@ -25,6 +25,31 @@ export class PublicBookingController {
     }
   }
 
+  async getBookedTimes(request: Request, response: Response) {
+    try {
+      const { slug } = request.params;
+      const { date, professionalId } = request.query;
+
+      const bookedTimes = await publicBookingService.getBookedTimes({
+        slug,
+        date: String(date || ""),
+        professionalId: String(professionalId || ""),
+      });
+
+      return response.json(bookedTimes);
+    } catch (error) {
+      if (error instanceof Error) {
+        return response.status(400).json({
+          message: error.message,
+        });
+      }
+
+      return response.status(500).json({
+        message: "Não foi possível carregar os horários ocupados.",
+      });
+    }
+  }
+
   async createAppointment(request: Request, response: Response) {
     try {
       const { slug } = request.params;

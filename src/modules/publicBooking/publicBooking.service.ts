@@ -14,6 +14,12 @@ type CreatePublicAppointmentData = {
   notes?: string;
 };
 
+type GetBookedTimesData = {
+  slug: string;
+  professionalId: string;
+  date: string;
+};
+
 function addMinutesToTime(time: string, minutesToAdd: number) {
   const [hours, minutes] = time.split(":").map(Number);
 
@@ -30,11 +36,45 @@ function createAppointmentDate(date: string) {
   return new Date(`${date}T00:00:00`);
 }
 
+function timeToMinutes(time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+
+  return hours * 60 + minutes;
+}
+
+function hasTimeConflict(
+  newStartTime: string,
+  newEndTime: string,
+  existingStartTime: string,
+  existingEndTime: string
+) {
+  const newStart = timeToMinutes(newStartTime);
+  const newEnd = timeToMinutes(newEndTime);
+  const existingStart = timeToMinutes(existingStartTime);
+  const existingEnd = timeToMinutes(existingEndTime);
+
+  return newStart < existingEnd && newEnd > existingStart;
+}
+
+async function findBusinessBySlug(slug: string) {
+  return prisma.business.findFirst({
+    where: {
+      slug: {
+        equals: slug,
+        mode: "insensitive",
+      },
+    },
+  });
+}
+
 export class PublicBookingService {
   async getBusinessBySlug(slug: string) {
-    const business = await prisma.business.findUnique({
+    const business = await prisma.business.findFirst({
       where: {
-        slug,
+        slug: {
+          equals: slug,
+          mode: "insensitive",
+        },
       },
       select: {
         id: true,
@@ -82,6 +122,58 @@ export class PublicBookingService {
     return business;
   }
 
+  async getBookedTimes(data: GetBookedTimesData) {
+    if (!data.date || !data.professionalId) {
+      throw new Error("Data e profissional são obrigatórios.");
+    }
+
+    const professional = await prisma.professional.findUnique({
+      where: {
+        id: data.professionalId.trim(),
+      },
+      include: {
+        business: true,
+      },
+    });
+
+    if (!professional || !professional.active) {
+      throw new Error("Profissional não encontrado ou inativo.");
+    }
+    const appointmentDate = createAppointmentDate(data.date);
+
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        businessId: professional.businessId,
+        professionalId: professional.id,
+        date: appointmentDate,
+        status: {
+          notIn: [AppointmentStatus.CANCELED, AppointmentStatus.NO_SHOW],
+        },
+      },
+      orderBy: {
+        startTime: "asc",
+      },
+      select: {
+        startTime: true,
+        endTime: true,
+      },
+    });
+
+    return {
+      business: {
+        id: professional.business.id,
+        name: professional.business.name,
+        slug: professional.business.slug,
+      },
+      professional: {
+        id: professional.id,
+        name: professional.name,
+      },
+      bookedTimes: appointments.map((appointment) => appointment.startTime),
+      appointments,
+    };
+  }
+
   async createAppointment(data: CreatePublicAppointmentData) {
     if (!data.clientName || !data.clientPhone) {
       throw new Error("Nome e telefone do cliente são obrigatórios.");
@@ -95,11 +187,7 @@ export class PublicBookingService {
       throw new Error("Data e horário são obrigatórios.");
     }
 
-    const business = await prisma.business.findUnique({
-      where: {
-        slug: data.slug,
-      },
-    });
+    const business = await findBusinessBySlug(data.slug);
 
     if (!business) {
       throw new Error("Negócio não encontrado.");
@@ -132,17 +220,29 @@ export class PublicBookingService {
     const appointmentDate = createAppointmentDate(data.date);
     const endTime = addMinutesToTime(data.startTime, service.durationMinutes);
 
-    const conflictingAppointment = await prisma.appointment.findFirst({
+    const existingAppointments = await prisma.appointment.findMany({
       where: {
         businessId: business.id,
         professionalId: professional.id,
         date: appointmentDate,
-        startTime: data.startTime,
         status: {
           notIn: [AppointmentStatus.CANCELED, AppointmentStatus.NO_SHOW],
         },
       },
+      select: {
+        startTime: true,
+        endTime: true,
+      },
     });
+
+    const conflictingAppointment = existingAppointments.find((appointment) =>
+      hasTimeConflict(
+        data.startTime,
+        endTime,
+        appointment.startTime,
+        appointment.endTime
+      )
+    );
 
     if (conflictingAppointment) {
       throw new Error("Esse horário já está ocupado para este profissional.");
