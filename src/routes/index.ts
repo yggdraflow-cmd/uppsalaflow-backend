@@ -1,10 +1,12 @@
 import { Router } from "express";
+
 import { appointmentsRoutes } from "../modules/appointments/appointments.routes";
 import { authRoutes } from "../modules/auth/auth.routes";
 import { businessesRoutes } from "../modules/businesses/businesses.routes";
 import { clientsRoutes } from "../modules/clients/clients.routes";
 import { dashboardRoutes } from "../modules/dashboard/dashboard.routes";
 import { professionalsRoutes } from "../modules/professionals/professionals.routes";
+import { publicBookingRoutes } from "../modules/publicBooking/publicBooking.routes";
 import { servicesRoutes } from "../modules/services/services.routes";
 import { usersRoutes } from "../modules/users/users.routes";
 
@@ -16,6 +18,8 @@ routes.get("/health", (request, response) => {
     app: "Uppsalaflow Backend",
   });
 });
+
+routes.use("/public", publicBookingRoutes);
 
 routes.use("/auth", authRoutes);
 routes.use("/users", usersRoutes);
