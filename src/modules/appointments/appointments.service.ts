@@ -10,10 +10,11 @@ type AppointmentInput = {
   serviceId: string;
   date: string;
   startTime: string;
-  endTime: string;
-  price: number;
   notes?: string;
 };
+
+const BUSINESS_OPEN_TIME = "08:00";
+const BUSINESS_CLOSE_TIME = "18:00";
 
 function createAppointmentDate(date: string) {
   const dateOnly = date.split("T")[0];
@@ -39,6 +40,12 @@ function timeToMinutes(time: string) {
   return hours * 60 + minutes;
 }
 
+function isValidTimeBlock(time: string) {
+  const timeRegex = /^([01]\d|2[0-3]):(00|30)$/;
+
+  return timeRegex.test(time);
+}
+
 function hasTimeConflict(
   newStartTime: string,
   newEndTime: string,
@@ -53,9 +60,21 @@ function hasTimeConflict(
   return newStart < existingEnd && newEnd > existingStart;
 }
 
+function isInsideBusinessHours(startTime: string, endTime: string) {
+  const start = timeToMinutes(startTime);
+  const end = timeToMinutes(endTime);
+  const open = timeToMinutes(BUSINESS_OPEN_TIME);
+  const close = timeToMinutes(BUSINESS_CLOSE_TIME);
+
+  return start >= open && end <= close;
+}
+
 async function ensureBusinessOwner(ownerId: string, businessId: string) {
   const business = await prisma.business.findFirst({
-    where: { id: businessId, ownerId },
+    where: {
+      id: businessId,
+      ownerId,
+    },
   });
 
   if (!business) {
@@ -66,6 +85,13 @@ async function ensureBusinessOwner(ownerId: string, businessId: string) {
 export const appointmentsService = {
   async create(ownerId: string, data: AppointmentInput) {
     await ensureBusinessOwner(ownerId, data.businessId);
+
+    if (!isValidTimeBlock(data.startTime)) {
+      throw new AppError(
+        "O horário deve estar em blocos de 30 minutos, como 08:00 ou 08:30.",
+        400
+      );
+    }
 
     const [client, professional, service] = await Promise.all([
       prisma.client.findFirst({
@@ -110,6 +136,13 @@ export const appointmentsService = {
 
     const appointmentDate = createAppointmentDate(data.date);
     const endTime = addMinutesToTime(data.startTime, service.durationMinutes);
+
+    if (!isInsideBusinessHours(data.startTime, endTime)) {
+      throw new AppError(
+        "Esse horário está fora do expediente. Escolha um horário entre 08:00 e 18:00.",
+        400
+      );
+    }
 
     const existingAppointments = await prisma.appointment.findMany({
       where: {
@@ -191,11 +224,43 @@ export const appointmentsService = {
     });
   },
 
+  async listHistory(ownerId: string, businessId: string) {
+    await ensureBusinessOwner(ownerId, businessId);
+
+    return prisma.appointment.findMany({
+      where: {
+        businessId,
+        status: {
+          in: [
+            AppointmentStatus.FINISHED,
+            AppointmentStatus.CANCELED,
+            AppointmentStatus.NO_SHOW,
+          ],
+        },
+      },
+      include: {
+        client: true,
+        professional: true,
+        service: true,
+      },
+      orderBy: [
+        {
+          date: "desc",
+        },
+        {
+          startTime: "desc",
+        },
+      ],
+    });
+  },
+
   async updateStatus(ownerId: string, id: string, status: AppointmentStatus) {
     const appointment = await prisma.appointment.findFirst({
       where: {
         id,
-        business: { ownerId },
+        business: {
+          ownerId,
+        },
       },
     });
 
@@ -204,8 +269,12 @@ export const appointmentsService = {
     }
 
     return prisma.appointment.update({
-      where: { id },
-      data: { status },
+      where: {
+        id,
+      },
+      data: {
+        status,
+      },
       include: {
         client: true,
         professional: true,

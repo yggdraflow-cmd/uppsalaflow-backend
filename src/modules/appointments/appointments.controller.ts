@@ -1,4 +1,5 @@
 import { Response } from "express";
+
 import { AuthRequest } from "../../middlewares/auth.middleware";
 import { appointmentsService } from "./appointments.service";
 import {
@@ -19,7 +20,24 @@ export const appointmentsController = {
     const ownerId = request.user!.id;
     const businessId = String(request.query.businessId || "");
     const date = String(request.query.date || "");
-    const appointments = await appointmentsService.listByDay(ownerId, businessId, date);
+
+    const appointments = await appointmentsService.listByDay(
+      ownerId,
+      businessId,
+      date
+    );
+
+    return response.json(appointments);
+  },
+
+  async listHistory(request: AuthRequest, response: Response) {
+    const ownerId = request.user!.id;
+    const businessId = String(request.query.businessId || "");
+
+    const appointments = await appointmentsService.listHistory(
+      ownerId,
+      businessId
+    );
 
     return response.json(appointments);
   },
@@ -27,7 +45,12 @@ export const appointmentsController = {
   async updateStatus(request: AuthRequest, response: Response) {
     const ownerId = request.user!.id;
     const { status } = updateAppointmentStatusSchema.parse(request.body);
-    const appointment = await appointmentsService.updateStatus(ownerId, request.params.id, status);
+
+    const appointment = await appointmentsService.updateStatus(
+      ownerId,
+      request.params.id,
+      status
+    );
 
     return response.json(appointment);
   },
