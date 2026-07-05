@@ -37,15 +37,16 @@ enum SubscriptionStatus {
 }
 
 model User {
-  id           String     @id @default(uuid())
+  id           String   @id @default(uuid())
   name         String
-  email        String     @unique
+  email        String   @unique
   passwordHash String
-  role         UserRole   @default(OWNER)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  role         UserRole @default(OWNER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  businesses   Business[] @relation("BusinessOwner")
+  businesses     Business[] @relation("BusinessOwner")
+  clientProfiles Client[]   @relation("ClientUser")
 
   @@map("users")
 }
@@ -75,6 +76,7 @@ model Business {
 model Client {
   id         String   @id @default(uuid())
   businessId String
+  userId     String?
   name       String
   phone      String?
   email      String?
@@ -84,8 +86,10 @@ model Client {
   updatedAt  DateTime @updatedAt
 
   business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user         User?         @relation("ClientUser", fields: [userId], references: [id], onDelete: SetNull)
   appointments Appointment[]
 
+  @@index([userId])
   @@map("clients")
 }
 

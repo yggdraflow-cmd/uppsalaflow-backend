@@ -1,0 +1,12 @@
+import { Router } from "express";
+
+import { authMiddleware } from "../../middlewares/auth.middleware";
+import { clientPortalController } from "./clientPortal.controller";
+
+export const clientPortalRoutes = Router();
+
+clientPortalRoutes.get(
+  "/appointments",
+  authMiddleware,
+  clientPortalController.listAppointments
+);

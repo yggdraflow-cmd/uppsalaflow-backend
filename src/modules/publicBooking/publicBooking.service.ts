@@ -4,6 +4,7 @@ import { prisma } from "../../database/prisma";
 
 type CreatePublicAppointmentData = {
   slug: string;
+  clientUserId?: string;
   clientName: string;
   clientPhone: string;
   clientEmail?: string;
@@ -287,6 +288,15 @@ export class PublicBookingService {
       throw new Error("Esse horário já está ocupado para este profissional.");
     }
 
+    let client = data.clientUserId
+      ? await prisma.client.findFirst({
+          where: {
+            businessId: business.id,
+            userId: data.clientUserId,
+          },
+        })
+      : null;
+
     const clientSearchConditions = [];
 
     if (data.clientPhone) {
@@ -301,20 +311,44 @@ export class PublicBookingService {
       });
     }
 
-    let client = await prisma.client.findFirst({
-      where: {
-        businessId: business.id,
-        OR: clientSearchConditions,
-      },
-    });
+    if (!client && clientSearchConditions.length > 0) {
+      client = await prisma.client.findFirst({
+        where: {
+          businessId: business.id,
+          OR: clientSearchConditions,
+        },
+      });
+
+      if (
+        client &&
+        data.clientUserId &&
+        client.userId &&
+        client.userId !== data.clientUserId
+      ) {
+        client = null;
+      }
+    }
 
     if (!client) {
       client = await prisma.client.create({
         data: {
           businessId: business.id,
+          userId: data.clientUserId || null,
           name: data.clientName,
           phone: data.clientPhone,
           email: data.clientEmail || null,
+        },
+      });
+    } else {
+      client = await prisma.client.update({
+        where: {
+          id: client.id,
+        },
+        data: {
+          userId: client.userId || data.clientUserId || null,
+          name: data.clientName,
+          phone: data.clientPhone,
+          email: data.clientEmail || client.email,
         },
       });
     }
