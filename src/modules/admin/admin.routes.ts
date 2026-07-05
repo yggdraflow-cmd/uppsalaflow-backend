@@ -5,6 +5,7 @@ import {
   authMiddleware,
   requireRoles,
 } from "../../middlewares/auth.middleware";
+import { adminController } from "./admin.controller";
 
 export const adminRoutes = Router();
 
@@ -17,3 +18,5 @@ adminRoutes.get("/health", (request, response) => {
     area: "Uppsalaflow Admin",
   });
 });
+
+adminRoutes.get("/overview", adminController.overview);
