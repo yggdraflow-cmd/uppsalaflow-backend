@@ -2,6 +2,12 @@ import { SubscriptionStatus } from "@prisma/client";
 
 import { prisma } from "../../database/prisma";
 
+const paymentAttentionStatuses: SubscriptionStatus[] = [
+  SubscriptionStatus.PAST_DUE,
+  SubscriptionStatus.CANCELED,
+  SubscriptionStatus.EXPIRED,
+];
+
 export const adminService = {
   async overview() {
     const [users, businesses, subscriptions] = await Promise.all([
@@ -82,11 +88,7 @@ export const adminService = {
     ).length;
 
     const paymentAttentionSubscriptions = subscriptions.filter((subscription) =>
-      [
-        SubscriptionStatus.PAST_DUE,
-        SubscriptionStatus.CANCELED,
-        SubscriptionStatus.EXPIRED,
-      ].includes(subscription.status)
+      paymentAttentionStatuses.includes(subscription.status)
     ).length;
 
     const businessesWithoutSubscription = businesses.filter(
