@@ -1,5 +1,6 @@
 import { Router } from "express";
 
+import { adminRoutes } from "../modules/admin/admin.routes";
 import { appointmentsRoutes } from "../modules/appointments/appointments.routes";
 import { authRoutes } from "../modules/auth/auth.routes";
 import { businessesRoutes } from "../modules/businesses/businesses.routes";
@@ -29,3 +30,4 @@ routes.use("/services", servicesRoutes);
 routes.use("/professionals", professionalsRoutes);
 routes.use("/appointments", appointmentsRoutes);
 routes.use("/dashboard", dashboardRoutes);
+routes.use("/admin", adminRoutes);

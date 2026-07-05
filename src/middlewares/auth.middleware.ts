@@ -1,17 +1,19 @@
+import { UserRole } from "@prisma/client";
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+
 import { env } from "../config/env";
 import { AppError } from "./error.middleware";
 
 export type JwtPayload = {
   sub: string;
-  role: string;
+  role: UserRole;
 };
 
 export type AuthRequest = Request & {
   user?: {
     id: string;
-    role: string;
+    role: UserRole;
   };
 };
 
@@ -44,4 +46,18 @@ export function authMiddleware(
   } catch {
     throw new AppError("Token inválido ou expirado.", 401);
   }
+}
+
+export function requireRoles(...allowedRoles: UserRole[]) {
+  return (request: AuthRequest, response: Response, next: NextFunction) => {
+    if (!request.user) {
+      throw new AppError("Usuário não autenticado.", 401);
+    }
+
+    if (!allowedRoles.includes(request.user.role)) {
+      throw new AppError("Você não tem permissão para acessar este recurso.", 403);
+    }
+
+    return next();
+  };
 }
