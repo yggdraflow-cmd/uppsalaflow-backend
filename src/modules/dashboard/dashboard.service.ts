@@ -12,7 +12,7 @@ async function ensureBusinessOwner(ownerId: string, businessId: string) {
   }
 }
 
-const activeAppointmentStatuses = [
+const activeAppointmentStatuses: AppointmentStatus[] = [
   AppointmentStatus.SCHEDULED,
   AppointmentStatus.CONFIRMED,
   AppointmentStatus.IN_PROGRESS,
