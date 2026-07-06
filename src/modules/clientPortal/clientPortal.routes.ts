@@ -10,3 +10,15 @@ clientPortalRoutes.get(
   authMiddleware,
   clientPortalController.listAppointments
 );
+
+clientPortalRoutes.patch(
+  "/appointments/:appointmentId/proposals/:proposalId/respond",
+  authMiddleware,
+  clientPortalController.respondProposal
+);
+
+clientPortalRoutes.post(
+  "/appointments/:appointmentId/messages",
+  authMiddleware,
+  clientPortalController.createMessage
+);

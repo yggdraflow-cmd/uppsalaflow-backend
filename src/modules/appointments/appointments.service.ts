@@ -1,4 +1,7 @@
-import { AppointmentStatus } from "@prisma/client";
+import {
+  AppointmentMessageSender,
+  AppointmentStatus,
+} from "@prisma/client";
 
 import { prisma } from "../../database/prisma";
 import { AppError } from "../../middlewares/error.middleware";
@@ -13,8 +16,30 @@ type AppointmentInput = {
   notes?: string;
 };
 
+type AppointmentProposalInput = {
+  date: string;
+  startTime: string;
+  message: string;
+};
+
 const BUSINESS_OPEN_TIME = "08:00";
 const BUSINESS_CLOSE_TIME = "18:00";
+
+const appointmentInclude = {
+  client: true,
+  professional: true,
+  service: true,
+  proposals: {
+    orderBy: {
+      createdAt: "desc" as const,
+    },
+  },
+  messages: {
+    orderBy: {
+      createdAt: "asc" as const,
+    },
+  },
+};
 
 function createAppointmentDate(date: string) {
   const dateOnly = date.split("T")[0];
@@ -82,6 +107,58 @@ async function ensureBusinessOwner(ownerId: string, businessId: string) {
   }
 }
 
+async function ensureNoConflict({
+  businessId,
+  professionalId,
+  date,
+  startTime,
+  endTime,
+  ignoredAppointmentId,
+}: {
+  businessId: string;
+  professionalId: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  ignoredAppointmentId?: string;
+}) {
+  const existingAppointments = await prisma.appointment.findMany({
+    where: {
+      businessId,
+      professionalId,
+      date,
+      id: ignoredAppointmentId
+        ? {
+            not: ignoredAppointmentId,
+          }
+        : undefined,
+      status: {
+        notIn: [AppointmentStatus.CANCELED, AppointmentStatus.NO_SHOW],
+      },
+    },
+    select: {
+      startTime: true,
+      endTime: true,
+    },
+  });
+
+  const conflictingAppointment = existingAppointments.find((appointment) =>
+    hasTimeConflict(
+      startTime,
+      endTime,
+      appointment.startTime,
+      appointment.endTime
+    )
+  );
+
+  if (conflictingAppointment) {
+    throw new AppError(
+      "Esse horário já está ocupado para este profissional.",
+      400
+    );
+  }
+}
+
 export const appointmentsService = {
   async create(ownerId: string, data: AppointmentInput) {
     await ensureBusinessOwner(ownerId, data.businessId);
@@ -144,36 +221,13 @@ export const appointmentsService = {
       );
     }
 
-    const existingAppointments = await prisma.appointment.findMany({
-      where: {
-        businessId: data.businessId,
-        professionalId: data.professionalId,
-        date: appointmentDate,
-        status: {
-          notIn: [AppointmentStatus.CANCELED, AppointmentStatus.NO_SHOW],
-        },
-      },
-      select: {
-        startTime: true,
-        endTime: true,
-      },
+    await ensureNoConflict({
+      businessId: data.businessId,
+      professionalId: data.professionalId,
+      date: appointmentDate,
+      startTime: data.startTime,
+      endTime,
     });
-
-    const conflictingAppointment = existingAppointments.find((appointment) =>
-      hasTimeConflict(
-        data.startTime,
-        endTime,
-        appointment.startTime,
-        appointment.endTime
-      )
-    );
-
-    if (conflictingAppointment) {
-      throw new AppError(
-        "Esse horário já está ocupado para este profissional.",
-        400
-      );
-    }
 
     return prisma.appointment.create({
       data: {
@@ -187,11 +241,7 @@ export const appointmentsService = {
         price: service.price,
         notes: data.notes,
       },
-      include: {
-        client: true,
-        professional: true,
-        service: true,
-      },
+      include: appointmentInclude,
     });
   },
 
@@ -213,11 +263,7 @@ export const appointmentsService = {
           lte: endOfDay,
         },
       },
-      include: {
-        client: true,
-        professional: true,
-        service: true,
-      },
+      include: appointmentInclude,
       orderBy: {
         startTime: "asc",
       },
@@ -238,11 +284,7 @@ export const appointmentsService = {
           ],
         },
       },
-      include: {
-        client: true,
-        professional: true,
-        service: true,
-      },
+      include: appointmentInclude,
       orderBy: [
         {
           date: "desc",
@@ -262,11 +304,7 @@ export const appointmentsService = {
         businessId,
         status: AppointmentStatus.SCHEDULED,
       },
-      include: {
-        client: true,
-        professional: true,
-        service: true,
-      },
+      include: appointmentInclude,
       orderBy: [
         {
           date: "asc",
@@ -276,6 +314,109 @@ export const appointmentsService = {
         },
       ],
     });
+  },
+
+  async getThread(ownerId: string, id: string) {
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id,
+        business: {
+          ownerId,
+        },
+      },
+      include: appointmentInclude,
+    });
+
+    if (!appointment) {
+      throw new AppError("Agendamento não encontrado.", 404);
+    }
+
+    return appointment;
+  },
+
+  async createProposal(
+    ownerId: string,
+    id: string,
+    data: AppointmentProposalInput
+  ) {
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id,
+        business: {
+          ownerId,
+        },
+      },
+      include: {
+        service: true,
+      },
+    });
+
+    if (!appointment) {
+      throw new AppError("Agendamento não encontrado.", 404);
+    }
+
+    if (!isValidTimeBlock(data.startTime)) {
+      throw new AppError(
+        "O horário deve estar em blocos de 30 minutos, como 08:00 ou 08:30.",
+        400
+      );
+    }
+
+    const suggestedDate = createAppointmentDate(data.date);
+    const suggestedEndTime = addMinutesToTime(
+      data.startTime,
+      appointment.service.durationMinutes
+    );
+
+    if (!isInsideBusinessHours(data.startTime, suggestedEndTime)) {
+      throw new AppError(
+        "Esse horário está fora do expediente. Escolha um horário entre 08:00 e 18:00.",
+        400
+      );
+    }
+
+    await ensureNoConflict({
+      businessId: appointment.businessId,
+      professionalId: appointment.professionalId,
+      date: suggestedDate,
+      startTime: data.startTime,
+      endTime: suggestedEndTime,
+      ignoredAppointmentId: appointment.id,
+    });
+
+    await prisma.appointmentProposal.create({
+      data: {
+        appointmentId: appointment.id,
+        suggestedDate,
+        suggestedStartTime: data.startTime,
+        suggestedEndTime,
+        message: data.message,
+      },
+    });
+
+    await prisma.appointmentMessage.create({
+      data: {
+        appointmentId: appointment.id,
+        sender: AppointmentMessageSender.OWNER,
+        message: data.message,
+      },
+    });
+
+    return appointmentsService.getThread(ownerId, id);
+  },
+
+  async createMessage(ownerId: string, id: string, message: string) {
+    await appointmentsService.getThread(ownerId, id);
+
+    await prisma.appointmentMessage.create({
+      data: {
+        appointmentId: id,
+        sender: AppointmentMessageSender.OWNER,
+        message,
+      },
+    });
+
+    return appointmentsService.getThread(ownerId, id);
   },
 
   async updateStatus(ownerId: string, id: string, status: AppointmentStatus) {
@@ -299,11 +440,7 @@ export const appointmentsService = {
       data: {
         status,
       },
-      include: {
-        client: true,
-        professional: true,
-        service: true,
-      },
+      include: appointmentInclude,
     });
   },
 };
