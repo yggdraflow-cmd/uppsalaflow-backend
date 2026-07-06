@@ -9,6 +9,7 @@ import { AppError } from "../../middlewares/error.middleware";
 type RegisterInput = {
   name: string;
   email: string;
+  phone?: string;
   password: string;
 };
 
@@ -43,6 +44,7 @@ async function createUser(data: RegisterInput, role: UserRole) {
     data: {
       name: data.name,
       email: normalizedEmail,
+      phone: data.phone?.trim() || null,
       passwordHash,
       role,
     },
@@ -91,6 +93,7 @@ export const authService = {
         id: user.id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         role: user.role,
       },
       token,

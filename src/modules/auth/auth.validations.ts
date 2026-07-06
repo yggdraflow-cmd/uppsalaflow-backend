@@ -9,6 +9,7 @@ export const registerSchema = z.object({
 export const clientRegisterSchema = z.object({
   name: z.string().min(2, "Nome obrigatório."),
   email: z.string().email("E-mail inválido."),
+  phone: z.string().min(8, "Telefone obrigatório."),
   password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres."),
 });
 
