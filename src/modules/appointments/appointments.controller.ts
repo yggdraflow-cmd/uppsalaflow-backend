@@ -42,6 +42,18 @@ export const appointmentsController = {
     return response.json(appointments);
   },
 
+  async listPending(request: AuthRequest, response: Response) {
+    const ownerId = request.user!.id;
+    const businessId = String(request.query.businessId || "");
+
+    const appointments = await appointmentsService.listPending(
+      ownerId,
+      businessId
+    );
+
+    return response.json(appointments);
+  },
+
   async updateStatus(request: AuthRequest, response: Response) {
     const ownerId = request.user!.id;
     const { status } = updateAppointmentStatusSchema.parse(request.body);

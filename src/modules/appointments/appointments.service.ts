@@ -254,6 +254,30 @@ export const appointmentsService = {
     });
   },
 
+  async listPending(ownerId: string, businessId: string) {
+    await ensureBusinessOwner(ownerId, businessId);
+
+    return prisma.appointment.findMany({
+      where: {
+        businessId,
+        status: AppointmentStatus.SCHEDULED,
+      },
+      include: {
+        client: true,
+        professional: true,
+        service: true,
+      },
+      orderBy: [
+        {
+          date: "asc",
+        },
+        {
+          startTime: "asc",
+        },
+      ],
+    });
+  },
+
   async updateStatus(ownerId: string, id: string, status: AppointmentStatus) {
     const appointment = await prisma.appointment.findFirst({
       where: {
