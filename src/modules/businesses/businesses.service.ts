@@ -1,6 +1,23 @@
 import { prisma } from "../../database/prisma";
 import { AppError } from "../../middlewares/error.middleware";
 
+type BusinessSegment =
+  | "BARBERSHOP"
+  | "BEAUTY"
+  | "ODONTOLOGY"
+  | "VETERINARY"
+  | "WELLNESS"
+  | "OTHER";
+
+type BusinessSpecialty =
+  | "BEAUTY_GENERAL"
+  | "HAIR"
+  | "NAILS"
+  | "LASHES"
+  | "MAKEUP"
+  | "SKINCARE"
+  | "EYEBROWS";
+
 type BusinessInput = {
   name: string;
   phone?: string;
@@ -8,7 +25,29 @@ type BusinessInput = {
   address?: string;
   category?: string;
   slug: string;
+  segment?: BusinessSegment;
+  specialty?: BusinessSpecialty | null;
 };
+
+type BusinessSegmentInput = {
+  segment: BusinessSegment;
+  specialty?: BusinessSpecialty | null;
+};
+
+function normalizeSegmentData(data: BusinessSegmentInput) {
+  if (data.segment === "BEAUTY" && !data.specialty) {
+    throw new AppError("Escolha uma especialidade para estética.", 400);
+  }
+
+  if (data.segment !== "BEAUTY" && data.specialty) {
+    throw new AppError("Especialidade só pode ser usada para estética.", 400);
+  }
+
+  return {
+    segment: data.segment,
+    specialty: data.segment === "BEAUTY" ? data.specialty : null,
+  };
+}
 
 export const businessesService = {
   async create(ownerId: string, data: BusinessInput) {
@@ -66,6 +105,17 @@ export const businessesService = {
     return prisma.business.update({
       where: { id: businessId },
       data,
+    });
+  },
+
+  async updateSegment(ownerId: string, businessId: string, data: BusinessSegmentInput) {
+    await this.findById(ownerId, businessId);
+
+    const normalizedData = normalizeSegmentData(data);
+
+    return prisma.business.update({
+      where: { id: businessId },
+      data: normalizedData,
     });
   },
 

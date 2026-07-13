@@ -10,4 +10,5 @@ businessesRoutes.post("/", businessesController.create);
 businessesRoutes.get("/", businessesController.list);
 businessesRoutes.get("/:id", businessesController.findById);
 businessesRoutes.put("/:id", businessesController.update);
+businessesRoutes.patch("/:id/segment", businessesController.updateSegment);
 businessesRoutes.delete("/:id", businessesController.remove);

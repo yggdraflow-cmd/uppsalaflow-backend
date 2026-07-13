@@ -1,7 +1,11 @@
 import { Response } from "express";
 import { AuthRequest } from "../../middlewares/auth.middleware";
 import { businessesService } from "./businesses.service";
-import { createBusinessSchema, updateBusinessSchema } from "./businesses.validations";
+import {
+  createBusinessSchema,
+  updateBusinessSchema,
+  updateBusinessSegmentSchema,
+} from "./businesses.validations";
 
 export const businessesController = {
   async create(request: AuthRequest, response: Response) {
@@ -30,6 +34,14 @@ export const businessesController = {
     const ownerId = request.user!.id;
     const data = updateBusinessSchema.parse(request.body);
     const business = await businessesService.update(ownerId, request.params.id, data);
+
+    return response.json(business);
+  },
+
+  async updateSegment(request: AuthRequest, response: Response) {
+    const ownerId = request.user!.id;
+    const data = updateBusinessSegmentSchema.parse(request.body);
+    const business = await businessesService.updateSegment(ownerId, request.params.id, data);
 
     return response.json(business);
   },
