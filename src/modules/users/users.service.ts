@@ -17,6 +17,7 @@ export const usersService = {
         name: true,
         email: true,
         phone: true,
+        profileImageUrl: true,
         role: true,
         createdAt: true,
         updatedAt: true,
@@ -28,6 +29,38 @@ export const usersService = {
     }
 
     return user;
+  },
+
+  async updateProfileImage(userId: string, profileImageUrl: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!user) {
+      throw new AppError("Usuário não encontrado.", 404);
+    }
+
+    return prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        profileImageUrl,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        profileImageUrl: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
   },
 
   async changePassword(userId: string, data: ChangePasswordInput) {

@@ -1,5 +1,7 @@
 import { Response } from "express";
 import { AuthRequest } from "../../middlewares/auth.middleware";
+import { AppError } from "../../middlewares/error.middleware";
+import { getUploadedImageUrl } from "../../middlewares/upload.middleware";
 import { businessesService } from "./businesses.service";
 import {
   createBusinessSchema,
@@ -34,6 +36,24 @@ export const businessesController = {
     const ownerId = request.user!.id;
     const data = updateBusinessSchema.parse(request.body);
     const business = await businessesService.update(ownerId, request.params.id, data);
+
+    return response.json(business);
+  },
+
+  async updateLogo(request: AuthRequest, response: Response) {
+    const ownerId = request.user!.id;
+    const file = request.file;
+
+    if (!file) {
+      throw new AppError("Imagem não enviada.", 400);
+    }
+
+    const logoUrl = getUploadedImageUrl("business-logos", file);
+    const business = await businessesService.updateLogo(
+      ownerId,
+      request.params.id,
+      logoUrl
+    );
 
     return response.json(business);
   },

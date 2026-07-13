@@ -1,4 +1,5 @@
 import "express-async-errors";
+import { resolve } from "node:path";
 import cors from "cors";
 import express from "express";
 import { ZodError } from "zod";
@@ -9,6 +10,7 @@ export const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static(resolve("uploads")));
 
 app.use(routes);
 

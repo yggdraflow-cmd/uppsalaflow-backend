@@ -108,6 +108,17 @@ export const businessesService = {
     });
   },
 
+  async updateLogo(ownerId: string, businessId: string, logoUrl: string) {
+    await this.findById(ownerId, businessId);
+
+    return prisma.business.update({
+      where: { id: businessId },
+      data: {
+        logoUrl,
+      },
+    });
+  },
+
   async updateSegment(ownerId: string, businessId: string, data: BusinessSegmentInput) {
     await this.findById(ownerId, businessId);
 
