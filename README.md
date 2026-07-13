@@ -1,6 +1,6 @@
-# BeautyFlow Backend
+# YggdraFlow Backend
 
-Backend inicial do BeautyFlow SaaS usando Node.js, TypeScript, Express, Prisma, PostgreSQL, JWT e Bcrypt. O pacote não inclui `node_modules`.
+Backend inicial do YggdraFlow SaaS usando Node.js, TypeScript, Express, Prisma, PostgreSQL, JWT e Bcrypt. O pacote não inclui `node_modules`.
 
 ## Como rodar
 

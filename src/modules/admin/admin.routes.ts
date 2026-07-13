@@ -15,7 +15,7 @@ adminRoutes.use(requireRoles(UserRole.ADMIN));
 adminRoutes.get("/health", (request, response) => {
   return response.json({
     status: "ok",
-    area: "Uppsalaflow Admin",
+    area: "YggdraFlow Admin",
   });
 });
 

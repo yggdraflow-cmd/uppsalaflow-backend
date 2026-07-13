@@ -1,7 +1,7 @@
 {
-  "name": "uppsalaflow-backend",
+  "name": "yggdraflow-backend",
   "version": "1.0.0",
-  "description": "Backend do Uppsalaflow SaaS",
+  "description": "Backend do YggdraFlow SaaS",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -13,7 +13,7 @@
     "admin:create": "tsx src/scripts/createAdminUser.ts"
   },
   "keywords": [
-    "uppsalaflow",
+    "yggdraflow",
     "saas",
     "node",
     "express",

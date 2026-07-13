@@ -17,7 +17,7 @@ export const routes = Router();
 routes.get("/health", (request, response) => {
   return response.json({
     status: "ok",
-    app: "Uppsalaflow Backend",
+    app: "YggdraFlow Backend",
   });
 });
 
