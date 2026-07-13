@@ -21,21 +21,6 @@ async function ensureBusinessOwner(ownerId: string, businessId: string) {
 }
 
 export const clientsService = {
-  async create(ownerId: string, data: ClientInput) {
-    await ensureBusinessOwner(ownerId, data.businessId);
-
-    return prisma.client.create({
-      data: {
-        businessId: data.businessId,
-        name: data.name,
-        phone: data.phone,
-        email: data.email,
-        birthDate: data.birthDate ? new Date(data.birthDate) : undefined,
-        notes: data.notes,
-      },
-    });
-  },
-
   async list(ownerId: string, businessId: string) {
     await ensureBusinessOwner(ownerId, businessId);
 
@@ -60,7 +45,11 @@ export const clientsService = {
     return client;
   },
 
-  async update(ownerId: string, id: string, data: Partial<Omit<ClientInput, "businessId">>) {
+  async update(
+    ownerId: string,
+    id: string,
+    data: Partial<Omit<ClientInput, "businessId">>
+  ) {
     await this.findById(ownerId, id);
 
     return prisma.client.update({
@@ -70,15 +59,5 @@ export const clientsService = {
         birthDate: data.birthDate ? new Date(data.birthDate) : undefined,
       },
     });
-  },
-
-  async remove(ownerId: string, id: string) {
-    await this.findById(ownerId, id);
-
-    await prisma.client.delete({
-      where: { id },
-    });
-
-    return { message: "Cliente removido com sucesso." };
   },
 };
