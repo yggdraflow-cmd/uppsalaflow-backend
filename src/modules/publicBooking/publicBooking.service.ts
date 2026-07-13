@@ -1,4 +1,4 @@
-import { AppointmentStatus } from "@prisma/client";
+import { AppointmentStatus, UserRole } from "@prisma/client";
 
 import { prisma } from "../../database/prisma";
 
@@ -203,8 +203,29 @@ export class PublicBookingService {
   }
 
   async createAppointment(data: CreatePublicAppointmentData) {
-    if (!data.clientName || !data.clientPhone) {
-      throw new Error("Nome e telefone do cliente são obrigatórios.");
+    if (!data.clientUserId) {
+      throw new Error("Para agendar, entre ou crie sua conta de cliente.");
+    }
+
+    const clientUser = await prisma.user.findFirst({
+      where: {
+        id: data.clientUserId,
+        role: UserRole.CLIENT,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+      },
+    });
+
+    if (!clientUser) {
+      throw new Error("Conta de cliente não encontrada.");
+    }
+
+    if (!clientUser.phone) {
+      throw new Error("Atualize seu telefone no perfil antes de agendar.");
     }
 
     if (!data.serviceId || !data.professionalId) {
@@ -299,15 +320,15 @@ export class PublicBookingService {
 
     const clientSearchConditions = [];
 
-    if (data.clientPhone) {
+    if (clientUser.phone) {
       clientSearchConditions.push({
-        phone: data.clientPhone,
+        phone: clientUser.phone,
       });
     }
 
-    if (data.clientEmail) {
+    if (clientUser.email) {
       clientSearchConditions.push({
-        email: data.clientEmail,
+        email: clientUser.email,
       });
     }
 
@@ -333,10 +354,10 @@ export class PublicBookingService {
       client = await prisma.client.create({
         data: {
           businessId: business.id,
-          userId: data.clientUserId || null,
-          name: data.clientName,
-          phone: data.clientPhone,
-          email: data.clientEmail || null,
+          userId: clientUser.id,
+          name: clientUser.name,
+          phone: clientUser.phone,
+          email: clientUser.email,
         },
       });
     } else {
@@ -345,10 +366,10 @@ export class PublicBookingService {
           id: client.id,
         },
         data: {
-          userId: client.userId || data.clientUserId || null,
-          name: data.clientName,
-          phone: data.clientPhone,
-          email: data.clientEmail || client.email,
+          userId: client.userId || clientUser.id,
+          name: clientUser.name,
+          phone: clientUser.phone,
+          email: clientUser.email,
         },
       });
     }
