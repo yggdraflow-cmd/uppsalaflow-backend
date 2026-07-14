@@ -6,4 +6,5 @@ export const authRoutes = Router();
 
 authRoutes.post("/register", authController.register);
 authRoutes.post("/client/register", authController.registerClient);
+authRoutes.post("/client/login", authController.loginClient);
 authRoutes.post("/login", authController.login);

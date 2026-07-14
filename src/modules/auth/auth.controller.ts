@@ -24,7 +24,14 @@ export const authController = {
 
   async login(request: Request, response: Response) {
     const data = loginSchema.parse(request.body);
-    const result = await authService.login(data);
+    const result = await authService.login(data, "BUSINESS");
+
+    return response.json(result);
+  },
+
+  async loginClient(request: Request, response: Response) {
+    const data = loginSchema.parse(request.body);
+    const result = await authService.login(data, "CLIENT");
 
     return response.json(result);
   },

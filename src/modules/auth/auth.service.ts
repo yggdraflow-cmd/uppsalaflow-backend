@@ -18,6 +18,8 @@ type LoginInput = {
   password: string;
 };
 
+type LoginAccess = "BUSINESS" | "CLIENT";
+
 function createToken(userId: string, role: UserRole) {
   const options: SignOptions = {
     subject: userId,
@@ -73,7 +75,7 @@ export const authService = {
     return createUser(data, UserRole.CLIENT);
   },
 
-  async login(data: LoginInput) {
+  async login(data: LoginInput, access: LoginAccess) {
     const user = await prisma.user.findUnique({
       where: { email: data.email.toLowerCase().trim() },
     });
@@ -82,10 +84,27 @@ export const authService = {
       throw new AppError("E-mail ou senha inválidos.", 401);
     }
 
-    const passwordMatches = await bcrypt.compare(data.password, user.passwordHash);
+    const passwordMatches = await bcrypt.compare(
+      data.password,
+      user.passwordHash
+    );
 
     if (!passwordMatches) {
       throw new AppError("E-mail ou senha inválidos.", 401);
+    }
+
+    if (access === "CLIENT" && user.role !== UserRole.CLIENT) {
+      throw new AppError(
+        "Este e-mail pertence a uma conta empresarial. Use o acesso ao painel da empresa.",
+        403
+      );
+    }
+
+    if (access === "BUSINESS" && user.role === UserRole.CLIENT) {
+      throw new AppError(
+        "Este e-mail pertence a uma conta de cliente. Use o acesso de cliente.",
+        403
+      );
     }
 
     const token = createToken(user.id, user.role);
