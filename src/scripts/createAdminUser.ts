@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import bcrypt from "bcryptjs";
 import { PrismaClient, UserRole } from "@prisma/client";
 
@@ -19,25 +21,44 @@ async function main() {
   const password = getRequiredEnv("ADMIN_PASSWORD");
 
   if (password.length < 8) {
-    throw new Error("A senha do admin deve ter pelo menos 8 caracteres.");
+    throw new Error("A senha do Super Admin deve ter pelo menos 8 caracteres.");
   }
+
+  const passwordHash = await bcrypt.hash(password, 8);
 
   const existingAdmin = await prisma.user.findFirst({
     where: {
       role: UserRole.ADMIN,
     },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-    },
   });
 
   if (existingAdmin) {
-    throw new Error(
-      `Já existe um usuário ADMIN cadastrado: ${existingAdmin.email}`
-    );
+    if (existingAdmin.email !== email) {
+      throw new Error(
+        `Já existe um Super Admin cadastrado com o e-mail ${existingAdmin.email}.`
+      );
+    }
+
+    const updatedAdmin = await prisma.user.update({
+      where: {
+        id: existingAdmin.id,
+      },
+      data: {
+        name,
+        passwordHash,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        updatedAt: true,
+      },
+    });
+
+    console.log("Super Admin atualizado com sucesso.");
+    console.table([updatedAdmin]);
+    return;
   }
 
   const emailAlreadyExists = await prisma.user.findUnique({
@@ -47,10 +68,10 @@ async function main() {
   });
 
   if (emailAlreadyExists) {
-    throw new Error("Já existe um usuário com este e-mail.");
+    throw new Error(
+      "Este e-mail já pertence a outra conta e não pode ser promovido automaticamente."
+    );
   }
-
-  const passwordHash = await bcrypt.hash(password, 8);
 
   const admin = await prisma.user.create({
     data: {
@@ -68,13 +89,14 @@ async function main() {
     },
   });
 
+  console.log("Super Admin criado com sucesso.");
   console.table([admin]);
 }
 
 main()
   .catch((error) => {
     console.error(error.message || error);
-    process.exit(1);
+    process.exitCode = 1;
   })
   .finally(async () => {
     await prisma.$disconnect();

@@ -35,4 +35,11 @@ export const authController = {
 
     return response.json(result);
   },
+
+  async loginAdmin(request: Request, response: Response) {
+    const data = loginSchema.parse(request.body);
+    const result = await authService.login(data, "ADMIN");
+
+    return response.json(result);
+  },
 };

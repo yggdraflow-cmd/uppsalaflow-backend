@@ -18,7 +18,7 @@ type LoginInput = {
   password: string;
 };
 
-type LoginAccess = "BUSINESS" | "CLIENT";
+type LoginAccess = "BUSINESS" | "CLIENT" | "ADMIN";
 
 function createToken(userId: string, role: UserRole) {
   const options: SignOptions = {
@@ -93,9 +93,16 @@ export const authService = {
       throw new AppError("E-mail ou senha inválidos.", 401);
     }
 
+    if (access === "ADMIN" && user.role !== UserRole.ADMIN) {
+      throw new AppError(
+        "Esta conta não possui acesso ao Super Admin.",
+        403
+      );
+    }
+
     if (access === "CLIENT" && user.role !== UserRole.CLIENT) {
       throw new AppError(
-        "Este e-mail pertence a uma conta empresarial. Use o acesso ao painel da empresa.",
+        "Este e-mail não pertence a uma conta de cliente.",
         403
       );
     }
@@ -103,6 +110,13 @@ export const authService = {
     if (access === "BUSINESS" && user.role === UserRole.CLIENT) {
       throw new AppError(
         "Este e-mail pertence a uma conta de cliente. Use o acesso de cliente.",
+        403
+      );
+    }
+
+    if (access === "BUSINESS" && user.role === UserRole.ADMIN) {
+      throw new AppError(
+        "Esta conta pertence ao Super Admin. Use o acesso administrativo.",
         403
       );
     }

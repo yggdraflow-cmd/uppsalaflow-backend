@@ -1,3 +1,5 @@
+import { CompanyStatus } from "@prisma/client";
+
 import { prisma } from "../../database/prisma";
 import { AppError } from "../../middlewares/error.middleware";
 
@@ -49,6 +51,16 @@ function normalizeSegmentData(data: BusinessSegmentInput) {
   };
 }
 
+const businessRelations = {
+  subscription: true,
+  payments: {
+    orderBy: {
+      createdAt: "desc" as const,
+    },
+    take: 1,
+  },
+};
+
 export const businessesService = {
   async create(ownerId: string, data: BusinessInput) {
     const slugAlreadyExists = await prisma.business.findUnique({
@@ -63,7 +75,10 @@ export const businessesService = {
       data: {
         ...data,
         ownerId,
+        status: CompanyStatus.PENDING,
+        statusReason: "Aguardando escolha do plano.",
       },
+      include: businessRelations,
     });
   },
 
@@ -71,12 +86,14 @@ export const businessesService = {
     return prisma.business.findMany({
       where: { ownerId },
       orderBy: { createdAt: "desc" },
+      include: businessRelations,
     });
   },
 
   async findById(ownerId: string, businessId: string) {
     const business = await prisma.business.findFirst({
       where: { id: businessId, ownerId },
+      include: businessRelations,
     });
 
     if (!business) {
@@ -86,7 +103,11 @@ export const businessesService = {
     return business;
   },
 
-  async update(ownerId: string, businessId: string, data: Partial<BusinessInput>) {
+  async update(
+    ownerId: string,
+    businessId: string,
+    data: Partial<BusinessInput>
+  ) {
     await this.findById(ownerId, businessId);
 
     if (data.slug) {
@@ -105,10 +126,15 @@ export const businessesService = {
     return prisma.business.update({
       where: { id: businessId },
       data,
+      include: businessRelations,
     });
   },
 
-  async updateLogo(ownerId: string, businessId: string, logoUrl: string) {
+  async updateLogo(
+    ownerId: string,
+    businessId: string,
+    logoUrl: string
+  ) {
     await this.findById(ownerId, businessId);
 
     return prisma.business.update({
@@ -116,10 +142,15 @@ export const businessesService = {
       data: {
         logoUrl,
       },
+      include: businessRelations,
     });
   },
 
-  async updateSegment(ownerId: string, businessId: string, data: BusinessSegmentInput) {
+  async updateSegment(
+    ownerId: string,
+    businessId: string,
+    data: BusinessSegmentInput
+  ) {
     await this.findById(ownerId, businessId);
 
     const normalizedData = normalizeSegmentData(data);
@@ -127,6 +158,7 @@ export const businessesService = {
     return prisma.business.update({
       where: { id: businessId },
       data: normalizedData,
+      include: businessRelations,
     });
   },
 
