@@ -24,3 +24,28 @@ adminRoutes.get("/approvals", adminController.listApprovals);
 adminRoutes.get("/payments", adminController.listPayments);
 adminRoutes.get("/businesses", adminController.listBusinesses);
 adminRoutes.get("/businesses/:id", adminController.findBusinessById);
+
+adminRoutes.patch(
+  "/businesses/:id/approve",
+  adminController.approveBusiness
+);
+
+adminRoutes.patch(
+  "/businesses/:id/reject",
+  adminController.rejectBusiness
+);
+
+adminRoutes.patch(
+  "/businesses/:id/block",
+  adminController.blockBusiness
+);
+
+adminRoutes.patch(
+  "/businesses/:id/suspend",
+  adminController.suspendBusiness
+);
+
+adminRoutes.patch(
+  "/businesses/:id/reactivate",
+  adminController.reactivateBusiness
+);

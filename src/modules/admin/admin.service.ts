@@ -2,6 +2,7 @@ import {
   CompanyStatus,
   PaymentStatus,
   Prisma,
+  SubscriptionPlan,
   SubscriptionStatus,
 } from "@prisma/client";
 
@@ -15,6 +16,22 @@ type BusinessFilters = {
 
 type PaymentFilters = {
   status?: PaymentStatus;
+};
+
+type BusinessActionInput = {
+  businessId: string;
+  actorId: string;
+  ipAddress?: string;
+  reason?: string;
+};
+
+type ChangeBusinessStatusInput = BusinessActionInput & {
+  action: string;
+  targetStatus: CompanyStatus;
+  allowedStatuses: CompanyStatus[];
+  clearApproval?: boolean;
+  setApproval?: boolean;
+  requireValidSubscription?: boolean;
 };
 
 const paymentAttentionStatuses: SubscriptionStatus[] = [
@@ -121,6 +138,141 @@ const paymentListSelect = {
     },
   },
 } satisfies Prisma.PaymentSelect;
+
+function serializeBusinessStatus(data: {
+  status: CompanyStatus;
+  statusReason: string | null;
+  approvedById: string | null;
+  approvedAt: Date | null;
+}) {
+  return {
+    status: data.status,
+    statusReason: data.statusReason,
+    approvedById: data.approvedById,
+    approvedAt: data.approvedAt?.toISOString() ?? null,
+  };
+}
+
+async function changeBusinessStatus(input: ChangeBusinessStatusInput) {
+  return prisma.$transaction(async (transaction) => {
+    const business = await transaction.business.findUnique({
+      where: {
+        id: input.businessId,
+      },
+      select: {
+        id: true,
+        status: true,
+        statusReason: true,
+        approvedById: true,
+        approvedAt: true,
+        subscription: {
+          select: {
+            id: true,
+            plan: true,
+            status: true,
+          },
+        },
+        payments: {
+          where: {
+            status: PaymentStatus.PAID,
+          },
+          take: 1,
+          orderBy: {
+            paidAt: "desc",
+          },
+          select: {
+            id: true,
+            paidAt: true,
+          },
+        },
+      },
+    });
+
+    if (!business) {
+      throw new AppError("Empresa não encontrada.", 404);
+    }
+
+    if (!input.allowedStatuses.includes(business.status)) {
+      throw new AppError(
+        `A empresa não pode receber esta ação enquanto estiver com status ${business.status}.`,
+        409
+      );
+    }
+
+    if (input.requireValidSubscription) {
+      if (!business.subscription) {
+        throw new AppError(
+          "A empresa não possui uma assinatura cadastrada.",
+          409
+        );
+      }
+
+      const isFreePlan =
+        business.subscription.plan === SubscriptionPlan.FREE;
+
+      if (
+        !isFreePlan &&
+        business.subscription.status !== SubscriptionStatus.ACTIVE
+      ) {
+        throw new AppError(
+          "A assinatura da empresa não está ativa.",
+          409
+        );
+      }
+
+      if (!isFreePlan && business.payments.length === 0) {
+        throw new AppError(
+          "Não existe pagamento confirmado para esta empresa.",
+          409
+        );
+      }
+    }
+
+    const previousData = serializeBusinessStatus(business);
+    const approvalDate = input.setApproval ? new Date() : business.approvedAt;
+
+    const updatedBusiness = await transaction.business.update({
+      where: {
+        id: input.businessId,
+      },
+      data: {
+        status: input.targetStatus,
+        statusReason:
+          input.targetStatus === CompanyStatus.ACTIVE
+            ? null
+            : input.reason ?? null,
+        approvedById: input.clearApproval
+          ? null
+          : input.setApproval
+            ? input.actorId
+            : business.approvedById,
+        approvedAt: input.clearApproval ? null : approvalDate,
+      },
+      select: businessListSelect,
+    });
+
+    await transaction.auditLog.create({
+      data: {
+        actorId: input.actorId,
+        businessId: input.businessId,
+        action: input.action,
+        entityType: "Business",
+        entityId: input.businessId,
+        reason: input.reason,
+        previousData,
+        newData: serializeBusinessStatus({
+          status: updatedBusiness.status,
+          statusReason: updatedBusiness.statusReason,
+          approvedById: updatedBusiness.approvedBy?.id ?? null,
+          approvedAt: updatedBusiness.approvedAt,
+        }),
+        ipAddress: input.ipAddress,
+      },
+    });
+
+    return updatedBusiness;
+  });
+}
 
 export const adminService = {
   async overview() {
@@ -382,6 +534,68 @@ export const adminService = {
         createdAt: "desc",
       },
       select: paymentListSelect,
+    });
+  },
+
+  async approveBusiness(input: BusinessActionInput) {
+    return changeBusinessStatus({
+      ...input,
+      action: "BUSINESS_APPROVED",
+      targetStatus: CompanyStatus.ACTIVE,
+      allowedStatuses: approvalQueueStatuses,
+      setApproval: true,
+      requireValidSubscription: true,
+    });
+  },
+
+  async rejectBusiness(input: BusinessActionInput) {
+    return changeBusinessStatus({
+      ...input,
+      action: "BUSINESS_REJECTED",
+      targetStatus: CompanyStatus.CANCELED,
+      allowedStatuses: approvalQueueStatuses,
+      clearApproval: true,
+    });
+  },
+
+  async blockBusiness(input: BusinessActionInput) {
+    return changeBusinessStatus({
+      ...input,
+      action: "BUSINESS_BLOCKED",
+      targetStatus: CompanyStatus.BLOCKED,
+      allowedStatuses: [
+        CompanyStatus.PENDING,
+        CompanyStatus.PAYMENT_PENDING,
+        CompanyStatus.UNDER_REVIEW,
+        CompanyStatus.ACTIVE,
+        CompanyStatus.SUSPENDED,
+      ],
+    });
+  },
+
+  async suspendBusiness(input: BusinessActionInput) {
+    return changeBusinessStatus({
+      ...input,
+      action: "BUSINESS_SUSPENDED",
+      targetStatus: CompanyStatus.SUSPENDED,
+      allowedStatuses: [
+        CompanyStatus.ACTIVE,
+        CompanyStatus.BLOCKED,
+      ],
+    });
+  },
+
+  async reactivateBusiness(input: BusinessActionInput) {
+    return changeBusinessStatus({
+      ...input,
+      action: "BUSINESS_REACTIVATED",
+      targetStatus: CompanyStatus.ACTIVE,
+      allowedStatuses: [
+        CompanyStatus.BLOCKED,
+        CompanyStatus.SUSPENDED,
+      ],
+      setApproval: true,
+      requireValidSubscription: true,
     });
   },
 };
