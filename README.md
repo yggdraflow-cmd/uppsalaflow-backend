@@ -1,41 +1,50 @@
-# YggdraFlow Frontend
+# YggdraFlow Backend
 
-Frontend inicial do YggdraFlow SaaS usando React, TypeScript, Vite, Tailwind CSS, React Router e Axios. Preparado para instalar dependências pelo Git Bash.
-
-Este pacote não inclui `node_modules`.
+Backend inicial do YggdraFlow SaaS usando Node.js, TypeScript, Express, Prisma, PostgreSQL, JWT e Bcrypt. O pacote não inclui `node_modules`.
 
 ## Como rodar
 
 ```bash
 cp .env.example .env
 npm install
+npx prisma generate
+npx prisma migrate dev --name init
 npm run dev
 ```
 
-URL padrão do Vite:
-
-```txt
-http://localhost:5173
-```
-
-## Backend esperado
+Servidor padrão:
 
 ```txt
 http://localhost:3333
+```
+
+Rota de teste:
+
+```txt
+GET /health
 ```
 
 ## Estrutura
 
 ```txt
 src/
-  assets/
-  components/
-  layouts/
-  pages/
+  config/
+  database/
+  middlewares/
+  modules/
+    auth/
+    users/
+    businesses/
+    clients/
+    services/
+    professionals/
+    appointments/
+    dashboard/
   routes/
-  services/
-  types/
-  App.tsx
-  main.tsx
-  index.css
+  app.ts
+  server.ts
 ```
+
+## Observação
+
+Este zip não inclui `node_modules`. Rode `npm install` dentro da pasta do backend.
