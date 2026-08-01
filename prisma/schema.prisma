@@ -116,7 +116,7 @@ model Business {
   category     String?
   logoUrl      String?
   slug         String        @unique
-  status       CompanyStatus @default(ACTIVE)
+  status       CompanyStatus @default(PENDING)
   statusReason String?
   approvedAt   DateTime?
   createdAt    DateTime      @default(now())
