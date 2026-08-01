@@ -323,3 +323,18 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+model PlatformPaymentOption {
+  id           String       @id @default(uuid())
+  cycle        BillingCycle @unique
+  paymentLink  String?
+  pixCopyPaste String?
+  pixQrCodeUrl String?
+  instructions String?
+  active       Boolean      @default(true)
+  updatedById  String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("platform_payment_options")
+}
