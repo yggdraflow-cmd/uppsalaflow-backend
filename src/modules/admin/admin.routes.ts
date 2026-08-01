@@ -15,8 +15,12 @@ adminRoutes.use(requireRoles(UserRole.ADMIN));
 adminRoutes.get("/health", (request, response) => {
   return response.json({
     status: "ok",
-    area: "YggdraFlow Admin",
+    area: "YggdraFlow Platform Admin",
   });
 });
 
 adminRoutes.get("/overview", adminController.overview);
+adminRoutes.get("/approvals", adminController.listApprovals);
+adminRoutes.get("/payments", adminController.listPayments);
+adminRoutes.get("/businesses", adminController.listBusinesses);
+adminRoutes.get("/businesses/:id", adminController.findBusinessById);
