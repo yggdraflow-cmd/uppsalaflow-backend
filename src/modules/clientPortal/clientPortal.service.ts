@@ -6,6 +6,7 @@ import {
 
 import { prisma } from "../../database/prisma";
 import { AppError } from "../../middlewares/error.middleware";
+import { getAppointmentDisplayStatus } from "../../utils/appointmentDisplayStatus";
 
 type RespondProposalInput = {
   userId: string;
@@ -81,9 +82,17 @@ const appointmentSelect = {
 };
 
 function normalizeAppointment(appointment: any) {
+  const date = appointment.date.toISOString().slice(0, 10);
+
   return {
     ...appointment,
-    date: appointment.date.toISOString().slice(0, 10),
+    date,
+    displayStatus: getAppointmentDisplayStatus({
+      date,
+      startTime: appointment.startTime,
+      endTime: appointment.endTime,
+      status: appointment.status,
+    }),
     price: appointment.price.toString(),
     proposals: appointment.proposals.map((proposal: any) => ({
       ...proposal,
