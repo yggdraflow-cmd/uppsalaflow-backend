@@ -5,6 +5,7 @@ import {
 
 import { prisma } from "../../database/prisma";
 import { AppError } from "../../middlewares/error.middleware";
+import { isAppointmentStartInPast } from "../../utils/appointmentTime";
 
 type AppointmentInput = {
   businessId: string;
@@ -166,6 +167,20 @@ export const appointmentsService = {
     if (!isValidTimeBlock(data.startTime)) {
       throw new AppError(
         "O horário deve estar em blocos de 30 minutos, como 08:00 ou 08:30.",
+        400
+      );
+    }
+
+    if (isAppointmentStartInPast(data.date, data.startTime)) {
+      throw new AppError(
+        "Não é possível sugerir um horário que já passou.",
+        400
+      );
+    }
+
+    if (isAppointmentStartInPast(data.date, data.startTime)) {
+      throw new AppError(
+        "Não é possível criar um agendamento em um horário que já passou.",
         400
       );
     }

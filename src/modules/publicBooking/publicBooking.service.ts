@@ -1,6 +1,10 @@
 import { AppointmentStatus, UserRole } from "@prisma/client";
 
 import { prisma } from "../../database/prisma";
+import {
+  getSaoPauloDateTime,
+  isAppointmentStartInPast,
+} from "../../utils/appointmentTime";
 
 type CreatePublicAppointmentData = {
   slug: string;
@@ -187,7 +191,11 @@ export class PublicBookingService {
       },
     });
 
+    const current = getSaoPauloDateTime();
+
     return {
+      currentDate: current.date,
+      currentTime: current.time,
       business: {
         id: professional.business.id,
         name: professional.business.name,
@@ -239,6 +247,12 @@ export class PublicBookingService {
     if (!isValidTimeBlock(data.startTime)) {
       throw new Error(
         "O horário deve estar em blocos de 30 minutos, como 08:00 ou 08:30."
+      );
+    }
+
+    if (isAppointmentStartInPast(data.date, data.startTime)) {
+      throw new Error(
+        "Não é possível agendar um horário que já passou. Escolha um horário futuro."
       );
     }
 
