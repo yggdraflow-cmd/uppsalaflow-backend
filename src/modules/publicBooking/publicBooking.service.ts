@@ -1,9 +1,7 @@
 import {
   AppointmentStatus,
   CompanyStatus,
-  SubscriptionStatus,
-  UserRole,
-} from "@prisma/client";
+  SubscriptionStatus,} from "@prisma/client";
 
 import { prisma } from "../../database/prisma";
 import { synchronizeBusinessBilling } from "../billing/billingLifecycle.service";
@@ -253,10 +251,9 @@ export class PublicBookingService {
       throw new Error("Para agendar, entre ou crie sua conta de cliente.");
     }
 
-    const clientUser = await prisma.user.findFirst({
+    const clientUser = await prisma.user.findUnique({
       where: {
         id: data.clientUserId,
-        role: UserRole.CLIENT,
       },
       select: {
         id: true,

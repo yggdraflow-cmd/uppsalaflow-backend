@@ -9,23 +9,38 @@ import { changePasswordSchema } from "./users.validations";
 export const usersController = {
   async me(request: AuthRequest, response: Response) {
     const userId = request.user!.id;
+    const sessionRole = request.user!.role;
     const user = await usersService.me(userId);
 
-    return response.json(user);
+    return response.json({
+      ...user,
+      role: sessionRole,
+    });
   },
 
   async updateProfileImage(request: AuthRequest, response: Response) {
     const userId = request.user!.id;
+    const sessionRole = request.user!.role;
     const file = request.file;
 
     if (!file) {
       throw new AppError("Imagem não enviada.", 400);
     }
 
-    const profileImageUrl = getUploadedImageUrl("profile-images", file);
-    const user = await usersService.updateProfileImage(userId, profileImageUrl);
+    const profileImageUrl = getUploadedImageUrl(
+      "profile-images",
+      file
+    );
 
-    return response.json(user);
+    const user = await usersService.updateProfileImage(
+      userId,
+      profileImageUrl
+    );
+
+    return response.json({
+      ...user,
+      role: sessionRole,
+    });
   },
 
   async changePassword(request: AuthRequest, response: Response) {

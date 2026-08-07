@@ -72,12 +72,64 @@ export const authService = {
   },
 
   async registerClient(data: RegisterInput) {
-    return createUser(data, UserRole.CLIENT);
+    const normalizedEmail = data.email.toLowerCase().trim();
+
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email: normalizedEmail,
+      },
+    });
+
+    if (!existingUser) {
+      return createUser(data, UserRole.CLIENT);
+    }
+
+    const passwordMatches = await bcrypt.compare(
+      data.password,
+      existingUser.passwordHash
+    );
+
+    if (!passwordMatches) {
+      throw new AppError(
+        "Este e-mail já possui uma conta. Informe a senha atual dessa conta para acessar como cliente.",
+        401
+      );
+    }
+
+    let user = existingUser;
+
+    if (!user.phone && data.phone?.trim()) {
+      user = await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          phone: data.phone.trim(),
+        },
+      });
+    }
+
+    const token = createToken(user.id, UserRole.CLIENT);
+
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        profileImageUrl: user.profileImageUrl,
+        role: UserRole.CLIENT,
+        createdAt: user.createdAt,
+      },
+      token,
+    };
   },
 
   async login(data: LoginInput, access: LoginAccess) {
     const user = await prisma.user.findUnique({
-      where: { email: data.email.toLowerCase().trim() },
+      where: {
+        email: data.email.toLowerCase().trim(),
+      },
     });
 
     if (!user) {
@@ -100,13 +152,6 @@ export const authService = {
       );
     }
 
-    if (access === "CLIENT" && user.role !== UserRole.CLIENT) {
-      throw new AppError(
-        "Este e-mail não pertence a uma conta de cliente.",
-        403
-      );
-    }
-
     if (access === "BUSINESS" && user.role === UserRole.CLIENT) {
       throw new AppError(
         "Este e-mail pertence a uma conta de cliente. Use o acesso de cliente.",
@@ -121,7 +166,10 @@ export const authService = {
       );
     }
 
-    const token = createToken(user.id, user.role);
+    const sessionRole =
+      access === "CLIENT" ? UserRole.CLIENT : user.role;
+
+    const token = createToken(user.id, sessionRole);
 
     return {
       user: {
@@ -130,7 +178,7 @@ export const authService = {
         email: user.email,
         phone: user.phone,
         profileImageUrl: user.profileImageUrl,
-        role: user.role,
+        role: sessionRole,
       },
       token,
     };
