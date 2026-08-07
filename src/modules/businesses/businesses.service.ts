@@ -2,6 +2,7 @@ import { CompanyStatus } from "@prisma/client";
 
 import { prisma } from "../../database/prisma";
 import { AppError } from "../../middlewares/error.middleware";
+import { synchronizeBusinessBilling } from "../billing/billingLifecycle.service";
 
 type BusinessSegment =
   | "BARBERSHOP"
@@ -83,24 +84,58 @@ export const businessesService = {
   },
 
   async list(ownerId: string) {
-    return prisma.business.findMany({
+    const businessIds = await prisma.business.findMany({
+      where: { ownerId },
+      select: {
+        id: true,
+      },
+    });
+
+    const billingEntries = await Promise.all(
+      businessIds.map(async (business) => [
+        business.id,
+        await synchronizeBusinessBilling(business.id),
+      ] as const)
+    );
+
+    const billingByBusinessId = new Map(billingEntries);
+
+    const businesses = await prisma.business.findMany({
       where: { ownerId },
       orderBy: { createdAt: "desc" },
       include: businessRelations,
     });
+
+    return businesses.map((business) => ({
+      ...business,
+      billing: billingByBusinessId.get(business.id),
+    }));
   },
 
   async findById(ownerId: string, businessId: string) {
-    const business = await prisma.business.findFirst({
+    const ownedBusiness = await prisma.business.findFirst({
       where: { id: businessId, ownerId },
-      include: businessRelations,
+      select: {
+        id: true,
+      },
     });
 
-    if (!business) {
+    if (!ownedBusiness) {
       throw new AppError("Negócio não encontrado.", 404);
     }
 
-    return business;
+    const billing =
+      await synchronizeBusinessBilling(businessId);
+
+    const business = await prisma.business.findUnique({
+      where: { id: businessId },
+      include: businessRelations,
+    });
+
+    return {
+      ...business,
+      billing,
+    };
   },
 
   async update(

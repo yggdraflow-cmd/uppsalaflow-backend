@@ -1,6 +1,12 @@
-import { AppointmentStatus, UserRole } from "@prisma/client";
+import {
+  AppointmentStatus,
+  CompanyStatus,
+  SubscriptionStatus,
+  UserRole,
+} from "@prisma/client";
 
 import { prisma } from "../../database/prisma";
+import { synchronizeBusinessBilling } from "../billing/billingLifecycle.service";
 import {
   getSaoPauloDateTime,
   isAppointmentStartInPast,
@@ -80,24 +86,58 @@ function isInsideBusinessHours(startTime: string, endTime: string) {
 }
 
 async function findBusinessBySlug(slug: string) {
-  return prisma.business.findFirst({
+  const business = await prisma.business.findFirst({
     where: {
       slug: {
         equals: slug,
         mode: "insensitive",
       },
     },
+    include: {
+      subscription: true,
+    },
   });
+
+  if (!business) {
+    return null;
+  }
+
+  await synchronizeBusinessBilling(business.id);
+
+  const refreshedBusiness =
+    await prisma.business.findUnique({
+      where: {
+        id: business.id,
+      },
+      include: {
+        subscription: true,
+      },
+    });
+
+  if (
+    !refreshedBusiness ||
+    refreshedBusiness.status !== CompanyStatus.ACTIVE ||
+    refreshedBusiness.subscription?.status !==
+      SubscriptionStatus.ACTIVE
+  ) {
+    return null;
+  }
+
+  return refreshedBusiness;
 }
 
 export class PublicBookingService {
   async getBusinessBySlug(slug: string) {
-    const business = await prisma.business.findFirst({
+    const availableBusiness =
+      await findBusinessBySlug(slug);
+
+    if (!availableBusiness) {
+      return null;
+    }
+
+    return prisma.business.findUnique({
       where: {
-        slug: {
-          equals: slug,
-          mode: "insensitive",
-        },
+        id: availableBusiness.id,
       },
       select: {
         id: true,
@@ -141,8 +181,6 @@ export class PublicBookingService {
         },
       },
     });
-
-    return business;
   }
 
   async getBookedTimes(data: GetBookedTimesData) {

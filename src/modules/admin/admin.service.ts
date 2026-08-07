@@ -8,6 +8,7 @@ import {
 
 import { prisma } from "../../database/prisma";
 import { AppError } from "../../middlewares/error.middleware";
+import { synchronizeAllBusinessBillings } from "../billing/billingLifecycle.service";
 
 type BusinessFilters = {
   status?: CompanyStatus;
@@ -276,6 +277,7 @@ async function changeBusinessStatus(input: ChangeBusinessStatusInput) {
 
 export const adminService = {
   async overview() {
+    await synchronizeAllBusinessBillings();
     const [users, businesses, subscriptions, payments] = await Promise.all([
       prisma.user.findMany({
         orderBy: {
@@ -388,6 +390,7 @@ export const adminService = {
   },
 
   async listBusinesses(filters: BusinessFilters) {
+    await synchronizeAllBusinessBillings();
     const where: Prisma.BusinessWhereInput = {};
 
     if (filters.status) {
@@ -433,6 +436,7 @@ export const adminService = {
   },
 
   async findBusinessById(businessId: string) {
+    await synchronizeAllBusinessBillings();
     const business = await prisma.business.findUnique({
       where: {
         id: businessId,
@@ -492,6 +496,7 @@ export const adminService = {
   },
 
   async listApprovals() {
+    await synchronizeAllBusinessBillings();
     return prisma.business.findMany({
       where: {
         status: {
@@ -524,6 +529,7 @@ export const adminService = {
   },
 
   async listPayments(filters: PaymentFilters) {
+    await synchronizeAllBusinessBillings();
     return prisma.payment.findMany({
       where: filters.status
         ? {
