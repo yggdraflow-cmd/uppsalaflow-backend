@@ -84,6 +84,7 @@ const businessListSelect = {
     select: {
       id: true,
       plan: true,
+      cycle: true,
       status: true,
       startedAt: true,
       expiresAt: true,
@@ -133,6 +134,7 @@ const paymentListSelect = {
     select: {
       id: true,
       plan: true,
+      cycle: true,
       status: true,
       startedAt: true,
       expiresAt: true,
@@ -170,6 +172,7 @@ async function changeBusinessStatus(input: ChangeBusinessStatusInput) {
           select: {
             id: true,
             plan: true,
+            cycle: true,
             status: true,
           },
         },
@@ -309,6 +312,7 @@ export const adminService = {
           id: true,
           businessId: true,
           plan: true,
+          cycle: true,
           status: true,
           startedAt: true,
           expiresAt: true,
