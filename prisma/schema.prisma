@@ -120,9 +120,10 @@ model Business {
   phone        String?
   email        String?
   address      String?
-  category     String?
-  logoUrl      String?
-  slug         String        @unique
+  category      String?
+  logoUrl       String?
+  coverImageUrl String?
+  slug          String        @unique
   status       CompanyStatus @default(PENDING)
   statusReason String?
   approvedAt   DateTime?

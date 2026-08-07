@@ -48,6 +48,7 @@ function createImageUpload(folderName: string) {
 
 export const profileImageUpload = createImageUpload("profile-images");
 export const businessLogoUpload = createImageUpload("business-logos");
+export const businessCoverUpload = createImageUpload("business-covers");
 
 export function getUploadedImageUrl(folderName: string, file: Express.Multer.File) {
   return `/uploads/${folderName}/${file.filename}`;

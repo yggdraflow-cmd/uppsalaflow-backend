@@ -58,6 +58,36 @@ export const businessesController = {
     return response.json(business);
   },
 
+  async updateCover(request: AuthRequest, response: Response) {
+    const ownerId = request.user!.id;
+    const file = request.file;
+
+    if (!file) {
+      throw new AppError("Imagem não enviada.", 400);
+    }
+
+    const coverImageUrl = getUploadedImageUrl("business-covers", file);
+
+    const business = await businessesService.updateCover(
+      ownerId,
+      request.params.id,
+      coverImageUrl
+    );
+
+    return response.json(business);
+  },
+
+  async removeCover(request: AuthRequest, response: Response) {
+    const ownerId = request.user!.id;
+
+    const business = await businessesService.removeCover(
+      ownerId,
+      request.params.id
+    );
+
+    return response.json(business);
+  },
+
   async updateSegment(request: AuthRequest, response: Response) {
     const ownerId = request.user!.id;
     const data = updateBusinessSegmentSchema.parse(request.body);

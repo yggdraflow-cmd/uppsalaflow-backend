@@ -181,6 +181,37 @@ export const businessesService = {
     });
   },
 
+  async updateCover(
+    ownerId: string,
+    businessId: string,
+    coverImageUrl: string
+  ) {
+    await this.findById(ownerId, businessId);
+
+    return prisma.business.update({
+      where: { id: businessId },
+      data: {
+        coverImageUrl,
+      },
+      include: businessRelations,
+    });
+  },
+
+  async removeCover(
+    ownerId: string,
+    businessId: string
+  ) {
+    await this.findById(ownerId, businessId);
+
+    return prisma.business.update({
+      where: { id: businessId },
+      data: {
+        coverImageUrl: null,
+      },
+      include: businessRelations,
+    });
+  },
+
   async updateSegment(
     ownerId: string,
     businessId: string,
