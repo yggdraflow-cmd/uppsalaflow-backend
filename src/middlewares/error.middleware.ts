@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import multer from "multer";
 
 export class AppError extends Error {
   public statusCode: number;
@@ -18,6 +19,18 @@ export function errorMiddleware(
   if (error instanceof AppError) {
     return response.status(error.statusCode).json({
       message: error.message,
+    });
+  }
+
+  if (error instanceof multer.MulterError) {
+    if (error.code === "LIMIT_FILE_SIZE") {
+      return response.status(400).json({
+        message: "A imagem excede o limite máximo de 5 MB.",
+      });
+    }
+
+    return response.status(400).json({
+      message: "Não foi possível processar a imagem enviada.",
     });
   }
 

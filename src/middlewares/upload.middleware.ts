@@ -5,7 +5,7 @@ import multer from "multer";
 
 import { AppError } from "./error.middleware";
 
-const MAX_IMAGE_SIZE_IN_BYTES = 2 * 1024 * 1024;
+const MAX_IMAGE_SIZE_IN_BYTES = 5 * 1024 * 1024;
 
 const allowedImageMimeTypes = new Set([
   "image/jpeg",
@@ -36,7 +36,10 @@ function createImageUpload(folderName: string) {
     fileFilter: (_request, file, callback) => {
       if (!allowedImageMimeTypes.has(file.mimetype)) {
         callback(
-          new AppError("Envie uma imagem nos formatos JPG, PNG ou WEBP.", 400)
+          new AppError(
+            "Formato não suportado. Use uma imagem JPG, PNG ou WEBP.",
+            400
+          )
         );
         return;
       }
@@ -50,6 +53,9 @@ export const profileImageUpload = createImageUpload("profile-images");
 export const businessLogoUpload = createImageUpload("business-logos");
 export const businessCoverUpload = createImageUpload("business-covers");
 
-export function getUploadedImageUrl(folderName: string, file: Express.Multer.File) {
+export function getUploadedImageUrl(
+  folderName: string,
+  file: Express.Multer.File
+) {
   return `/uploads/${folderName}/${file.filename}`;
 }
