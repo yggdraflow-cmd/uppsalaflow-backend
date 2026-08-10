@@ -35,6 +35,18 @@ function getClientUserIdFromRequest(request: Request) {
 }
 
 export class PublicBookingController {
+  async listBusinesses(request: Request, response: Response) {
+    try {
+      const businesses = await publicBookingService.listBusinesses();
+
+      return response.json(businesses);
+    } catch {
+      return response.status(500).json({
+        message: "Não foi possível carregar os estabelecimentos.",
+      });
+    }
+  }
+
   async getBusinessBySlug(request: Request, response: Response) {
     try {
       const { slug } = request.params;

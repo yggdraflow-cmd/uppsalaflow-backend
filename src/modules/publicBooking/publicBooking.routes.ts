@@ -6,6 +6,11 @@ const publicBookingRoutes = Router();
 const publicBookingController = new PublicBookingController();
 
 publicBookingRoutes.get(
+  "/businesses",
+  publicBookingController.listBusinesses
+);
+
+publicBookingRoutes.get(
   "/businesses/:slug/booked-times",
   publicBookingController.getBookedTimes
 );

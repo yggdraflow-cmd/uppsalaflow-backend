@@ -125,6 +125,56 @@ async function findBusinessBySlug(slug: string) {
 }
 
 export class PublicBookingService {
+  async listBusinesses() {
+    return prisma.business.findMany({
+      where: {
+        status: CompanyStatus.ACTIVE,
+        subscription: {
+          is: {
+            status: SubscriptionStatus.ACTIVE,
+          },
+        },
+        services: {
+          some: {
+            active: true,
+          },
+        },
+      },
+      orderBy: {
+        name: "asc",
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        address: true,
+        category: true,
+        logoUrl: true,
+        coverImageUrl: true,
+        slug: true,
+        segment: true,
+        specialty: true,
+        services: {
+          where: {
+            active: true,
+          },
+          orderBy: [
+            { price: "asc" },
+            { name: "asc" },
+          ],
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            price: true,
+            durationMinutes: true,
+            category: true,
+          },
+        },
+      },
+    });
+  }
+
   async getBusinessBySlug(slug: string) {
     const availableBusiness =
       await findBusinessBySlug(slug);
