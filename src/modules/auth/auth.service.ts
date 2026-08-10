@@ -1,10 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt, { SignOptions } from "jsonwebtoken";
-import {
-  CompanyStatus,
-  SubscriptionStatus,
-  UserRole,
-} from "@prisma/client";
+import { UserRole } from "@prisma/client";
 
 import { prisma } from "../../database/prisma";
 import { env } from "../../config/env";
@@ -17,9 +13,7 @@ type RegisterInput = {
   password: string;
 };
 
-type ClientRegisterInput = RegisterInput & {
-  slug: string;
-};
+type ClientRegisterInput = RegisterInput;
 
 type LoginInput = {
   email: string;
@@ -28,12 +22,6 @@ type LoginInput = {
 
 type LoginAccess = "BUSINESS" | "CLIENT" | "ADMIN";
 
-type ClientUserData = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string | null;
-};
 
 function createToken(userId: string, role: UserRole) {
   const options: SignOptions = {
@@ -81,101 +69,12 @@ async function createUser(data: RegisterInput, role: UserRole) {
   return { user, token };
 }
 
-async function findAvailableBusinessBySlug(slug: string) {
-  const business = await prisma.business.findFirst({
-    where: {
-      slug: {
-        equals: slug.trim(),
-        mode: "insensitive",
-      },
-    },
-    include: {
-      subscription: true,
-    },
-  });
-
-  if (
-    !business ||
-    business.status !== CompanyStatus.ACTIVE ||
-    business.subscription?.status !== SubscriptionStatus.ACTIVE
-  ) {
-    throw new AppError(
-      "O estabelecimento informado não está disponível para cadastro.",
-      404
-    );
-  }
-
-  return business;
-}
-
-async function ensureClientBusinessLink(
-  businessId: string,
-  user: ClientUserData
-) {
-  let client = await prisma.client.findFirst({
-    where: {
-      businessId,
-      userId: user.id,
-    },
-  });
-
-  if (!client) {
-    client = await prisma.client.findFirst({
-      where: {
-        businessId,
-        OR: [
-          {
-            email: user.email,
-          },
-          ...(user.phone
-            ? [
-                {
-                  phone: user.phone,
-                },
-              ]
-            : []),
-        ],
-      },
-    });
-
-    if (client?.userId && client.userId !== user.id) {
-      client = null;
-    }
-  }
-
-  if (!client) {
-    return prisma.client.create({
-      data: {
-        businessId,
-        userId: user.id,
-        name: user.name,
-        phone: user.phone,
-        email: user.email,
-      },
-    });
-  }
-
-  return prisma.client.update({
-    where: {
-      id: client.id,
-    },
-    data: {
-      userId: client.userId || user.id,
-      name: user.name,
-      phone: user.phone,
-      email: user.email,
-    },
-  });
-}
-
 export const authService = {
   async register(data: RegisterInput) {
     return createUser(data, UserRole.OWNER);
   },
 
   async registerClient(data: ClientRegisterInput) {
-    const business = await findAvailableBusinessBySlug(data.slug);
-
     const normalizedEmail = data.email.toLowerCase().trim();
 
     const existingUser = await prisma.user.findUnique({
@@ -185,16 +84,7 @@ export const authService = {
     });
 
     if (!existingUser) {
-      const result = await createUser(data, UserRole.CLIENT);
-
-      await ensureClientBusinessLink(business.id, {
-        id: result.user.id,
-        name: result.user.name,
-        email: result.user.email,
-        phone: result.user.phone,
-      });
-
-      return result;
+      return createUser(data, UserRole.CLIENT);
     }
 
     const passwordMatches = await bcrypt.compare(
@@ -221,13 +111,6 @@ export const authService = {
         },
       });
     }
-
-    await ensureClientBusinessLink(business.id, {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-    });
 
     const token = createToken(user.id, UserRole.CLIENT);
 
