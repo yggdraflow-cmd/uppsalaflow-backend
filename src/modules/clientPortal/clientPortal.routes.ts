@@ -18,6 +18,12 @@ clientPortalRoutes.patch(
 );
 
 clientPortalRoutes.post(
+  "/appointments/:appointmentId/review",
+  authMiddleware,
+  clientPortalController.createReview
+);
+
+clientPortalRoutes.post(
   "/appointments/:appointmentId/messages",
   authMiddleware,
   clientPortalController.createMessage

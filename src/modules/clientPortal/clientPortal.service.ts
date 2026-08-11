@@ -22,6 +22,14 @@ type CreateMessageInput = {
   message: string;
 };
 
+type CreateReviewInput = {
+  userId: string;
+  appointmentId: string;
+  rating: number;
+  comment?: string;
+};
+
+
 const appointmentSelect = {
   id: true,
   date: true,
@@ -77,6 +85,15 @@ const appointmentSelect = {
       sender: true,
       message: true,
       createdAt: true,
+    },
+  },
+  review: {
+    select: {
+      id: true,
+      rating: true,
+      comment: true,
+      createdAt: true,
+      updatedAt: true,
     },
   },
 };
@@ -318,6 +335,50 @@ export const clientPortalService = {
     return appointments.appointments.find(
       (currentAppointment) => currentAppointment.id === data.appointmentId
     );
+  },
+
+  async createReview(data: CreateReviewInput) {
+    const appointment = await findClientAppointment(
+      data.userId,
+      data.appointmentId
+    );
+
+    if (appointment.status !== AppointmentStatus.FINISHED) {
+      throw new AppError(
+        "Apenas atendimentos finalizados podem ser avaliados.",
+        400
+      );
+    }
+
+    const existingReview = await prisma.appointmentReview.findUnique({
+      where: {
+        appointmentId: appointment.id,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingReview) {
+      throw new AppError("Esse atendimento já foi avaliado.", 400);
+    }
+
+    return prisma.appointmentReview.create({
+      data: {
+        appointmentId: appointment.id,
+        businessId: appointment.businessId,
+        clientId: appointment.clientId,
+        rating: data.rating,
+        comment: data.comment?.trim() || null,
+      },
+      select: {
+        id: true,
+        rating: true,
+        comment: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
   },
 
   async createMessage(data: CreateMessageInput) {

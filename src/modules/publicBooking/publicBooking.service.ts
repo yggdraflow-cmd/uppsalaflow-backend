@@ -126,7 +126,7 @@ async function findBusinessBySlug(slug: string) {
 
 export class PublicBookingService {
   async listBusinesses() {
-    return prisma.business.findMany({
+    const businesses = await prisma.business.findMany({
       where: {
         status: CompanyStatus.ACTIVE,
         subscription: {
@@ -172,6 +172,43 @@ export class PublicBookingService {
           },
         },
       },
+    });
+
+    if (businesses.length === 0) {
+      return [];
+    }
+
+    const ratings = await prisma.appointmentReview.groupBy({
+      by: ["businessId"],
+      where: {
+        businessId: {
+          in: businesses.map((business) => business.id),
+        },
+      },
+      _avg: {
+        rating: true,
+      },
+      _count: {
+        _all: true,
+      },
+    });
+
+    const ratingByBusiness = new Map(
+      ratings.map((rating) => [rating.businessId, rating] as const)
+    );
+
+    return businesses.map((business) => {
+      const rating = ratingByBusiness.get(business.id);
+      const averageRating = rating?._avg.rating ?? null;
+
+      return {
+        ...business,
+        averageRating:
+          averageRating === null
+            ? null
+            : Number(averageRating.toFixed(1)),
+        ratingCount: rating?._count._all ?? 0,
+      };
     });
   }
 
