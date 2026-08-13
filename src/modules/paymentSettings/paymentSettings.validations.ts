@@ -43,3 +43,11 @@ export const updatePlatformPaymentOptionSchema = z.object({
   instructions: optionalNullableString(1000),
   active: z.boolean().optional(),
 });
+
+export const updatePlatformBillingPlanSchema = z.object({
+  installmentAmount: z.coerce
+    .number()
+    .positive("O valor do plano deve ser maior que zero.")
+    .max(999999.99, "Valor do plano acima do limite permitido."),
+  active: z.boolean().optional(),
+});

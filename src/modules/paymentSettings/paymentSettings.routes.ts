@@ -28,3 +28,15 @@ paymentSettingsRoutes.put(
   requireRoles(UserRole.ADMIN),
   paymentSettingsController.saveOption
 );
+
+paymentSettingsRoutes.get(
+  "/admin/billing-plans",
+  requireRoles(UserRole.ADMIN),
+  paymentSettingsController.listAdminBillingPlans
+);
+
+paymentSettingsRoutes.put(
+  "/admin/billing-plans/:cycle",
+  requireRoles(UserRole.ADMIN),
+  paymentSettingsController.saveBillingPlan
+);
