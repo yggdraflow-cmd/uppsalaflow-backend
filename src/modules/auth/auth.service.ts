@@ -5,6 +5,13 @@ import { UserRole } from "@prisma/client";
 import { prisma } from "../../database/prisma";
 import { env } from "../../config/env";
 import { AppError } from "../../middlewares/error.middleware";
+import {
+  decryptTwoFactorSecret,
+  encryptTwoFactorSecret,
+  generateTwoFactorSecret,
+  generateTwoFactorUri,
+  verifyTwoFactorCode,
+} from "../../utils/twoFactor";
 
 type RegisterInput = {
   name: string;
@@ -21,7 +28,6 @@ type LoginInput = {
 };
 
 type LoginAccess = "BUSINESS" | "CLIENT" | "ADMIN";
-
 
 function createToken(userId: string, role: UserRole) {
   const options: SignOptions = {
@@ -185,5 +191,121 @@ export const authService = {
       },
       token,
     };
+  },
+
+  async setupAdminTwoFactor(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        twoFactorEnabled: true,
+      },
+    });
+
+    if (!user || user.role !== UserRole.ADMIN) {
+      throw new AppError(
+        "Super Admin não encontrado.",
+        404
+      );
+    }
+
+    if (user.twoFactorEnabled) {
+      throw new AppError(
+        "A autenticação em dois fatores já está ativada.",
+        409
+      );
+    }
+
+    const secret = generateTwoFactorSecret();
+    const encryptedSecret =
+      encryptTwoFactorSecret(secret);
+
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        twoFactorSecretEncrypted: encryptedSecret,
+        twoFactorEnabled: false,
+        twoFactorEnabledAt: null,
+      },
+    });
+
+    return {
+      otpauthUri: generateTwoFactorUri(
+        user.email,
+        secret
+      ),
+      manualKey: secret,
+    };
+  },
+
+  async confirmAdminTwoFactor(
+    userId: string,
+    code: string
+  ) {
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        id: true,
+        role: true,
+        twoFactorEnabled: true,
+        twoFactorSecretEncrypted: true,
+      },
+    });
+
+    if (!user || user.role !== UserRole.ADMIN) {
+      throw new AppError(
+        "Super Admin não encontrado.",
+        404
+      );
+    }
+
+    if (user.twoFactorEnabled) {
+      throw new AppError(
+        "A autenticação em dois fatores já está ativada.",
+        409
+      );
+    }
+
+    if (!user.twoFactorSecretEncrypted) {
+      throw new AppError(
+        "Inicie a configuração do autenticador antes de confirmar o código.",
+        409
+      );
+    }
+
+    const secret = decryptTwoFactorSecret(
+      user.twoFactorSecretEncrypted
+    );
+
+    if (!verifyTwoFactorCode(secret, code)) {
+      throw new AppError(
+        "Código de autenticação inválido.",
+        401
+      );
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        twoFactorEnabled: true,
+        twoFactorEnabledAt: new Date(),
+      },
+      select: {
+        twoFactorEnabled: true,
+        twoFactorEnabledAt: true,
+      },
+    });
+
+    return updatedUser;
   },
 };

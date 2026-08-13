@@ -17,3 +17,10 @@ export const loginSchema = z.object({
   email: z.string().email("E-mail inválido."),
   password: z.string().min(1, "Senha obrigatória."),
 });
+
+export const twoFactorCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Informe o código de 6 dígitos."),
+});
