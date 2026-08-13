@@ -4,6 +4,7 @@ import { AuthRequest } from "../../middlewares/auth.middleware";
 import { AppError } from "../../middlewares/error.middleware";
 import { authService } from "./auth.service";
 import {
+  adminTwoFactorLoginSchema,
   clientRegisterSchema,
   loginSchema,
   registerSchema,
@@ -68,6 +69,22 @@ export const authController = {
       data,
       "ADMIN"
     );
+
+    return response.json(result);
+  },
+
+  async verifyAdminTwoFactorLogin(
+    request: AuthRequest,
+    response: Response
+  ) {
+    const { challengeToken, code } =
+      adminTwoFactorLoginSchema.parse(request.body);
+
+    const result =
+      await authService.verifyAdminTwoFactorLogin(
+        challengeToken,
+        code
+      );
 
     return response.json(result);
   },

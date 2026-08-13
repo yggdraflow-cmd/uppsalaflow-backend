@@ -22,6 +22,12 @@ authRoutes.post(
   "/admin/login",
   authController.loginAdmin
 );
+
+authRoutes.post(
+  "/admin/2fa/verify",
+  authController.verifyAdminTwoFactorLogin
+);
+
 authRoutes.post("/login", authController.login);
 
 authRoutes.post(

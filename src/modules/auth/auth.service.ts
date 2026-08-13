@@ -29,13 +29,42 @@ type LoginInput = {
 
 type LoginAccess = "BUSINESS" | "CLIENT" | "ADMIN";
 
+type AdminTwoFactorChallengePayload = {
+  sub: string;
+  role: UserRole;
+  purpose: "ADMIN_2FA";
+};
+
 function createToken(userId: string, role: UserRole) {
   const options: SignOptions = {
     subject: userId,
     expiresIn: env.jwtExpiresIn as SignOptions["expiresIn"],
   };
 
-  return jwt.sign({ role }, env.jwtSecret, options);
+  return jwt.sign(
+    {
+      role,
+      purpose: "SESSION",
+    },
+    env.jwtSecret,
+    options
+  );
+}
+
+function createAdminTwoFactorChallengeToken(userId: string) {
+  const options: SignOptions = {
+    subject: userId,
+    expiresIn: "5m",
+  };
+
+  return jwt.sign(
+    {
+      role: UserRole.ADMIN,
+      purpose: "ADMIN_2FA",
+    },
+    env.jwtSecret,
+    options
+  );
 }
 
 async function createUser(data: RegisterInput, role: UserRole) {
@@ -178,18 +207,132 @@ export const authService = {
     const sessionRole =
       access === "CLIENT" ? UserRole.CLIENT : user.role;
 
+    const sessionUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      profileImageUrl: user.profileImageUrl,
+      role: sessionRole,
+    };
+
+    if (
+      access === "ADMIN" &&
+      user.role === UserRole.ADMIN &&
+      user.twoFactorEnabled
+    ) {
+      if (!user.twoFactorSecretEncrypted) {
+        throw new AppError(
+          "O Super Admin possui 2FA ativo, mas não há segredo configurado.",
+          409
+        );
+      }
+
+      return {
+        requiresTwoFactor: true,
+        challengeToken:
+          createAdminTwoFactorChallengeToken(user.id),
+        user: sessionUser,
+      };
+    }
+
     const token = createToken(user.id, sessionRole);
 
     return {
+      requiresTwoFactor: false,
+      user: sessionUser,
+      token,
+    };
+  },
+
+  async verifyAdminTwoFactorLogin(
+    challengeToken: string,
+    code: string
+  ) {
+    let decoded: AdminTwoFactorChallengePayload;
+
+    try {
+      decoded = jwt.verify(
+        challengeToken,
+        env.jwtSecret
+      ) as AdminTwoFactorChallengePayload;
+    } catch {
+      throw new AppError(
+        "Desafio de autenticação inválido ou expirado.",
+        401
+      );
+    }
+
+    if (
+      decoded.purpose !== "ADMIN_2FA" ||
+      decoded.role !== UserRole.ADMIN ||
+      !decoded.sub
+    ) {
+      throw new AppError(
+        "Desafio de autenticação inválido.",
+        401
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: {
+        id: decoded.sub,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        profileImageUrl: true,
+        role: true,
+        twoFactorEnabled: true,
+        twoFactorSecretEncrypted: true,
+      },
+    });
+
+    if (!user || user.role !== UserRole.ADMIN) {
+      throw new AppError(
+        "Super Admin não encontrado.",
+        404
+      );
+    }
+
+    if (
+      !user.twoFactorEnabled ||
+      !user.twoFactorSecretEncrypted
+    ) {
+      throw new AppError(
+        "A autenticação em dois fatores não está ativa.",
+        409
+      );
+    }
+
+    const secret = decryptTwoFactorSecret(
+      user.twoFactorSecretEncrypted
+    );
+
+    if (!verifyTwoFactorCode(secret, code)) {
+      throw new AppError(
+        "Código de autenticação inválido.",
+        401
+      );
+    }
+
+    const token = createToken(
+      user.id,
+      UserRole.ADMIN
+    );
+
+    return {
+      token,
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
         phone: user.phone,
         profileImageUrl: user.profileImageUrl,
-        role: sessionRole,
+        role: UserRole.ADMIN,
       },
-      token,
     };
   },
 

@@ -24,3 +24,13 @@ export const twoFactorCodeSchema = z.object({
     .trim()
     .regex(/^\d{6}$/, "Informe o código de 6 dígitos."),
 });
+
+export const adminTwoFactorLoginSchema = z.object({
+  challengeToken: z
+    .string()
+    .min(1, "Desafio de autenticação obrigatório."),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Informe o código de 6 dígitos."),
+});
