@@ -365,3 +365,15 @@ model PlatformPaymentOption {
 
   @@map("platform_payment_options")
 }
+
+model PlatformBillingPlan {
+  id                String       @id @default(uuid())
+  cycle             BillingCycle @unique
+  installmentAmount Decimal      @db.Decimal(10, 2)
+  active            Boolean      @default(true)
+  updatedById       String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@map("platform_billing_plans")
+}
