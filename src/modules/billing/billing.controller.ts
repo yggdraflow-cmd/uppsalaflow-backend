@@ -7,7 +7,9 @@ import { selectPlanSchema } from "./billing.validations";
 
 export const billingController = {
   async listPlans(request: AuthRequest, response: Response) {
-    return response.json(billingService.listPlans());
+    const plans = await billingService.listPlans();
+
+    return response.json(plans);
   },
 
   async selectPlan(request: AuthRequest, response: Response) {

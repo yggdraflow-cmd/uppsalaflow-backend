@@ -14,32 +14,68 @@ import {
   synchronizeBusinessBilling,
 } from "./billingLifecycle.service";
 
-const plans = {
+const planMetadata: Record<
+  BillingCycle,
+  {
+    cycle: BillingCycle;
+    label: string;
+    installments: number;
+  }
+> = {
   [BillingCycle.MONTHLY]: {
     cycle: BillingCycle.MONTHLY,
     label: "Mensal",
     installments: 1,
-    installmentAmount: 100,
-    totalAmount: 100,
-    description: "1x de R$ 100,00",
   },
   [BillingCycle.SEMIANNUAL]: {
     cycle: BillingCycle.SEMIANNUAL,
     label: "Semestral",
     installments: 6,
-    installmentAmount: 89.9,
-    totalAmount: 539.4,
-    description: "6x de R$ 89,90",
   },
   [BillingCycle.ANNUAL]: {
     cycle: BillingCycle.ANNUAL,
     label: "Anual",
     installments: 12,
-    installmentAmount: 83.33,
-    totalAmount: 999.96,
-    description: "12x de R$ 83,33",
   },
 };
+
+const billingCycleOrder: Record<BillingCycle, number> = {
+  [BillingCycle.MONTHLY]: 1,
+  [BillingCycle.SEMIANNUAL]: 2,
+  [BillingCycle.ANNUAL]: 3,
+};
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+}
+
+function buildPlan(
+  cycle: BillingCycle,
+  installmentAmount: number
+) {
+  const metadata = planMetadata[cycle];
+
+  const totalAmount =
+    Math.round(
+      installmentAmount *
+        metadata.installments *
+        100
+    ) / 100;
+
+  return {
+    cycle,
+    label: metadata.label,
+    installments: metadata.installments,
+    installmentAmount,
+    totalAmount,
+    description: `${metadata.installments}x de ${formatCurrency(
+      installmentAmount
+    )}`,
+  };
+}
 
 function getPaymentMetadata(metadata: unknown) {
   if (
@@ -62,8 +98,30 @@ function getPositiveNumber(value: unknown, fallback: number) {
 }
 
 export const billingService = {
-  listPlans() {
-    return Object.values(plans);
+  async listPlans() {
+    const configuredPlans =
+      await prisma.platformBillingPlan.findMany({
+        where: {
+          active: true,
+        },
+        select: {
+          cycle: true,
+          installmentAmount: true,
+        },
+      });
+
+    return configuredPlans
+      .map((plan) =>
+        buildPlan(
+          plan.cycle,
+          Number(plan.installmentAmount)
+        )
+      )
+      .sort(
+        (first, second) =>
+          billingCycleOrder[first.cycle] -
+          billingCycleOrder[second.cycle]
+      );
   },
 
   async selectPlan(
@@ -96,7 +154,29 @@ export const billingService = {
       );
     }
 
-    const selectedPlan = plans[cycle];
+    const configuredPlan =
+      await prisma.platformBillingPlan.findUnique({
+        where: {
+          cycle,
+        },
+        select: {
+          cycle: true,
+          installmentAmount: true,
+          active: true,
+        },
+      });
+
+    if (!configuredPlan || !configuredPlan.active) {
+      throw new AppError(
+        "Este plano não está disponível no momento.",
+        404
+      );
+    }
+
+    const selectedPlan = buildPlan(
+      configuredPlan.cycle,
+      Number(configuredPlan.installmentAmount)
+    );
 
     return prisma.$transaction(async (transaction) => {
       const subscription =
