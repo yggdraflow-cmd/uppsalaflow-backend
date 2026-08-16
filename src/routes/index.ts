@@ -13,6 +13,7 @@ import { professionalsRoutes } from "../modules/professionals/professionals.rout
 import { publicBookingRoutes } from "../modules/publicBooking/publicBooking.routes";
 import { servicesRoutes } from "../modules/services/services.routes";
 import { usersRoutes } from "../modules/users/users.routes";
+import { yggdraTechPublicRoutes } from "../modules/yggdraTechContent/yggdraTechContent.routes";
 
 export const routes = Router();
 
@@ -24,6 +25,10 @@ routes.get("/health", (request, response) => {
 });
 
 routes.use("/public", publicBookingRoutes);
+routes.use(
+  "/public/yggdratech",
+  yggdraTechPublicRoutes
+);
 
 routes.use("/auth", authRoutes);
 routes.use("/users", usersRoutes);

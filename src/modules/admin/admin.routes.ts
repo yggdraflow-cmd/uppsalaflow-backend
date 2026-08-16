@@ -5,6 +5,7 @@ import {
   authMiddleware,
   requireRoles,
 } from "../../middlewares/auth.middleware";
+import { yggdraTechContentController } from "../yggdraTechContent/yggdraTechContent.controller";
 import { adminController } from "./admin.controller";
 
 export const adminRoutes = Router();
@@ -18,6 +19,16 @@ adminRoutes.get("/health", (request, response) => {
     area: "YggdraFlow Platform Admin",
   });
 });
+
+adminRoutes.get(
+  "/yggdratech/about",
+  yggdraTechContentController.getAdminAbout
+);
+
+adminRoutes.put(
+  "/yggdratech/about",
+  yggdraTechContentController.updateAbout
+);
 
 adminRoutes.get("/overview", adminController.overview);
 adminRoutes.get("/approvals", adminController.listApprovals);
