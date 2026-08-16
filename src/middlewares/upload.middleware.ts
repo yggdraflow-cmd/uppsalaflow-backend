@@ -52,6 +52,9 @@ function createImageUpload(folderName: string) {
 export const profileImageUpload = createImageUpload("profile-images");
 export const businessLogoUpload = createImageUpload("business-logos");
 export const businessCoverUpload = createImageUpload("business-covers");
+export const yggdraTechAboutImageUpload = createImageUpload(
+  "yggdratech-about"
+);
 
 export function getUploadedImageUrl(
   folderName: string,

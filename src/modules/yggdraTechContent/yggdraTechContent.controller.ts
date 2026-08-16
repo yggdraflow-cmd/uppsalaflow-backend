@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 
 import { AuthRequest } from "../../middlewares/auth.middleware";
 import { AppError } from "../../middlewares/error.middleware";
+import { getUploadedImageUrl } from "../../middlewares/upload.middleware";
 import { yggdraTechContentService } from "./yggdraTechContent.service";
 import { updateYggdraTechAboutBodySchema } from "./yggdraTechContent.validations";
 
@@ -41,6 +42,26 @@ export const yggdraTechContentController = {
     return response.json({
       message: "Quem Somos atualizado com sucesso.",
       content,
+    });
+  },
+
+  async uploadMemberImage(
+    request: AuthRequest,
+    response: Response
+  ) {
+    const file = request.file;
+
+    if (!file) {
+      throw new AppError("Imagem não enviada.", 400);
+    }
+
+    const imageUrl = getUploadedImageUrl(
+      "yggdratech-about",
+      file
+    );
+
+    return response.status(201).json({
+      imageUrl,
     });
   },
 

@@ -1,6 +1,8 @@
 import { UserRole } from "@prisma/client";
 import { Router } from "express";
 
+import { yggdraTechAboutImageUpload } from "../../middlewares/upload.middleware";
+
 import {
   authMiddleware,
   requireRoles,
@@ -19,6 +21,12 @@ adminRoutes.get("/health", (request, response) => {
     area: "YggdraFlow Platform Admin",
   });
 });
+
+adminRoutes.post(
+  "/yggdratech/about/member-image",
+  yggdraTechAboutImageUpload.single("image"),
+  yggdraTechContentController.uploadMemberImage
+);
 
 adminRoutes.get(
   "/yggdratech/about",
