@@ -4,7 +4,10 @@ import { AuthRequest } from "../../middlewares/auth.middleware";
 import { AppError } from "../../middlewares/error.middleware";
 import { getUploadedImageUrl } from "../../middlewares/upload.middleware";
 import { yggdraTechContentService } from "./yggdraTechContent.service";
-import { updateYggdraTechAboutBodySchema } from "./yggdraTechContent.validations";
+import {
+  updateYggdraTechAboutBodySchema,
+  updateYggdraTechServicesBodySchema,
+} from "./yggdraTechContent.validations";
 
 export const yggdraTechContentController = {
   async getAdminAbout(
@@ -71,6 +74,74 @@ export const yggdraTechContentController = {
   ) {
     const content =
       await yggdraTechContentService.getPublicAbout();
+
+    return response.json(content);
+  },
+
+  async getAdminServices(
+    request: AuthRequest,
+    response: Response
+  ) {
+    const content =
+      await yggdraTechContentService.getAdminServices();
+
+    return response.json(content);
+  },
+
+  async updateServices(
+    request: AuthRequest,
+    response: Response
+  ) {
+    if (!request.user) {
+      throw new AppError(
+        "Administrador não autenticado.",
+        401
+      );
+    }
+
+    const data =
+      updateYggdraTechServicesBodySchema.parse(
+        request.body
+      );
+
+    const content =
+      await yggdraTechContentService.updateServices(
+        request.user.id,
+        data
+      );
+
+    return response.json({
+      message: "Serviços atualizado com sucesso.",
+      content,
+    });
+  },
+
+  async uploadServiceImage(
+    request: AuthRequest,
+    response: Response
+  ) {
+    const file = request.file;
+
+    if (!file) {
+      throw new AppError("Imagem não enviada.", 400);
+    }
+
+    const imageUrl = getUploadedImageUrl(
+      "yggdratech-services",
+      file
+    );
+
+    return response.status(201).json({
+      imageUrl,
+    });
+  },
+
+  async getPublicServices(
+    request: Request,
+    response: Response
+  ) {
+    const content =
+      await yggdraTechContentService.getPublicServices();
 
     return response.json(content);
   },

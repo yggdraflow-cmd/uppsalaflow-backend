@@ -8,3 +8,8 @@ yggdraTechPublicRoutes.get(
   "/about",
   yggdraTechContentController.getPublicAbout
 );
+
+yggdraTechPublicRoutes.get(
+  "/services",
+  yggdraTechContentController.getPublicServices
+);

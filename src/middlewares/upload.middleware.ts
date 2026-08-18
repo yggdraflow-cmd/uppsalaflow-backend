@@ -55,6 +55,9 @@ export const businessCoverUpload = createImageUpload("business-covers");
 export const yggdraTechAboutImageUpload = createImageUpload(
   "yggdratech-about"
 );
+export const yggdraTechServiceImageUpload = createImageUpload(
+  "yggdratech-services"
+);
 
 export function getUploadedImageUrl(
   folderName: string,

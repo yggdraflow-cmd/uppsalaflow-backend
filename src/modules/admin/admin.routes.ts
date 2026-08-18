@@ -1,7 +1,10 @@
 import { UserRole } from "@prisma/client";
 import { Router } from "express";
 
-import { yggdraTechAboutImageUpload } from "../../middlewares/upload.middleware";
+import {
+  yggdraTechAboutImageUpload,
+  yggdraTechServiceImageUpload,
+} from "../../middlewares/upload.middleware";
 
 import {
   authMiddleware,
@@ -36,6 +39,22 @@ adminRoutes.get(
 adminRoutes.put(
   "/yggdratech/about",
   yggdraTechContentController.updateAbout
+);
+
+adminRoutes.post(
+  "/yggdratech/services/image",
+  yggdraTechServiceImageUpload.single("image"),
+  yggdraTechContentController.uploadServiceImage
+);
+
+adminRoutes.get(
+  "/yggdratech/services",
+  yggdraTechContentController.getAdminServices
+);
+
+adminRoutes.put(
+  "/yggdratech/services",
+  yggdraTechContentController.updateServices
 );
 
 adminRoutes.get("/overview", adminController.overview);
