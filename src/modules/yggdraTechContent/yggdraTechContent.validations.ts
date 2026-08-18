@@ -81,6 +81,10 @@ export const yggdraTechServiceItemSchema = z.object({
 });
 
 export const updateYggdraTechServicesBodySchema = z.object({
+  pageTitle: z
+    .string()
+    .trim()
+    .max(180, "O título da página deve possuir no máximo 180 caracteres."),
   pageMessage: z
     .string()
     .trim()

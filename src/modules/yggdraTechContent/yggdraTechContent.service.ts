@@ -18,6 +18,7 @@ const emptyAboutContent = {
 };
 
 const emptyServicesContent = {
+  pageTitle: "",
   pageMessage: "",
   services: [],
 };
@@ -44,6 +45,7 @@ function normalizeServicesContent(
   data: UpdateYggdraTechServicesInput
 ) {
   return {
+    pageTitle: data.pageTitle,
     pageMessage: data.pageMessage,
     services: data.services
       .map((service) => ({
