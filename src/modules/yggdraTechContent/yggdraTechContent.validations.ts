@@ -95,6 +95,83 @@ export const updateYggdraTechServicesBodySchema = z.object({
   published: z.boolean(),
 });
 
+export const yggdraTechHomeSectionSchema = z.object({
+  kicker: z.string().trim().max(160).optional(),
+  title: z.string().trim().max(300),
+  description: z.string().trim().max(2000),
+});
+
+export const yggdraTechHomeSocialLinkSchema = z.object({
+  id: z.string().trim().min(1).max(80).optional(),
+  platform: z.enum(["instagram", "x", "linkedin", "email"]),
+  label: z.string().trim().min(1).max(80),
+  url: z.string().trim().min(1).max(1000),
+  order: z.number().int().min(0).max(1000),
+});
+
+export const updateYggdraTechHomeBodySchema = z.object({
+  intro: z
+    .object({
+      hello: z
+        .string()
+        .trim()
+        .max(80, "O texto inicial deve possuir no máximo 80 caracteres."),
+      title: z
+        .string()
+        .trim()
+        .max(200, "O título deve possuir no máximo 200 caracteres."),
+      highlight: z
+        .string()
+        .trim()
+        .max(160, "O destaque deve possuir no máximo 160 caracteres."),
+      description: z
+        .string()
+        .trim()
+        .max(1200, "A descrição deve possuir no máximo 1200 caracteres."),
+    })
+    .optional(),
+
+  hero: z.object({
+    badge: z.string().trim().max(160),
+    title: z.string().trim().max(300),
+    highlight: z.string().trim().max(300),
+    description: z.string().trim().max(2000),
+    exploreLabel: z.string().trim().max(160),
+    exploreHref: z.string().trim().max(1000),
+  }),
+
+  clarity: yggdraTechHomeSectionSchema,
+
+  information: yggdraTechHomeSectionSchema,
+
+  finalCta: z.object({
+    title: z.string().trim().max(300),
+    description: z.string().trim().max(2000),
+    buttonLabel: z.string().trim().max(160),
+    buttonHref: z.string().trim().max(1000),
+  }),
+
+  social: z.object({
+    title: z.string().trim().max(200),
+    links: z
+      .array(yggdraTechHomeSocialLinkSchema)
+      .max(10, "A Home aceita no máximo 10 links sociais."),
+  }),
+
+  footerText: z.string().trim().max(500),
+
+  chatbot: z.object({
+    title: z.string().trim().max(120),
+    placeholder: z.string().trim().max(200),
+  }),
+
+  published: z.boolean(),
+});
+
+export type UpdateYggdraTechHomeInput = z.infer<
+  typeof updateYggdraTechHomeBodySchema
+>;
+
 export type UpdateYggdraTechAboutInput = z.infer<
   typeof updateYggdraTechAboutBodySchema
 >;

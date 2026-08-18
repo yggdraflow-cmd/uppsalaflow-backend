@@ -25,6 +25,16 @@ adminRoutes.get("/health", (request, response) => {
   });
 });
 
+adminRoutes.get(
+  "/yggdratech/home",
+  yggdraTechContentController.getAdminHome
+);
+
+adminRoutes.put(
+  "/yggdratech/home",
+  yggdraTechContentController.updateHome
+);
+
 adminRoutes.post(
   "/yggdratech/about/member-image",
   yggdraTechAboutImageUpload.single("image"),

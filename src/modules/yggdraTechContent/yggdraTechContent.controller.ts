@@ -6,10 +6,59 @@ import { getUploadedImageUrl } from "../../middlewares/upload.middleware";
 import { yggdraTechContentService } from "./yggdraTechContent.service";
 import {
   updateYggdraTechAboutBodySchema,
+  updateYggdraTechHomeBodySchema,
   updateYggdraTechServicesBodySchema,
 } from "./yggdraTechContent.validations";
 
 export const yggdraTechContentController = {
+  async getAdminHome(
+    request: AuthRequest,
+    response: Response
+  ) {
+    const content =
+      await yggdraTechContentService.getAdminHome();
+
+    return response.json(content);
+  },
+
+  async updateHome(
+    request: AuthRequest,
+    response: Response
+  ) {
+    if (!request.user) {
+      throw new AppError(
+        "Administrador não autenticado.",
+        401
+      );
+    }
+
+    const data =
+      updateYggdraTechHomeBodySchema.parse(
+        request.body
+      );
+
+    const content =
+      await yggdraTechContentService.updateHome(
+        request.user.id,
+        data
+      );
+
+    return response.json({
+      message: "Home atualizada com sucesso.",
+      content,
+    });
+  },
+
+  async getPublicHome(
+    request: Request,
+    response: Response
+  ) {
+    const content =
+      await yggdraTechContentService.getPublicHome();
+
+    return response.json(content);
+  },
+
   async getAdminAbout(
     request: AuthRequest,
     response: Response
