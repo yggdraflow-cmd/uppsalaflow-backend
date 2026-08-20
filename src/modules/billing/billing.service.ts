@@ -45,6 +45,12 @@ const billingCycleOrder: Record<BillingCycle, number> = {
   [BillingCycle.ANNUAL]: 3,
 };
 
+const billingCycleMonths: Record<BillingCycle, number> = {
+  [BillingCycle.MONTHLY]: 1,
+  [BillingCycle.SEMIANNUAL]: 6,
+  [BillingCycle.ANNUAL]: 12,
+};
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -225,7 +231,7 @@ export const billingService = {
       const paymentData = {
         subscriptionId: subscription.id,
         provider: "MANUAL",
-        amount: selectedPlan.installmentAmount,
+        amount: selectedPlan.totalAmount,
         status: PaymentStatus.PENDING,
         dueAt: new Date(),
         paidAt: null,
@@ -377,19 +383,14 @@ export const billingService = {
       }
 
       const now = new Date();
-      const nextDueAt = addMonthsToDate(now, 1);
+      const renewalMonths =
+        billingCycleMonths[payment.subscription.cycle];
+      const nextDueAt = addMonthsToDate(
+        now,
+        renewalMonths
+      );
       const metadata = getPaymentMetadata(
         payment.metadata
-      );
-
-      const totalInstallments = Math.max(
-        1,
-        payment.subscription.installments
-      );
-
-      const currentInstallment = getPositiveNumber(
-        metadata.installmentNumber,
-        1
       );
 
       const currentRenewalCycle = getPositiveNumber(
@@ -397,16 +398,8 @@ export const billingService = {
         1
       );
 
-      const completedCycle =
-        currentInstallment >= totalInstallments;
-
-      const nextInstallment = completedCycle
-        ? 1
-        : currentInstallment + 1;
-
-      const nextRenewalCycle = completedCycle
-        ? currentRenewalCycle + 1
-        : currentRenewalCycle;
+      const nextRenewalCycle =
+        currentRenewalCycle + 1;
 
       const confirmedPayment =
         await transaction.payment.update({
@@ -454,15 +447,16 @@ export const billingService = {
         subscriptionId: payment.subscription.id,
         provider: "MANUAL",
         amount:
-          payment.subscription.installmentAmount,
+          payment.subscription.totalAmount,
         status: PaymentStatus.PENDING,
         dueAt: nextDueAt,
         paidAt: null,
         failedAt: null,
         metadata: {
           cycle: payment.subscription.cycle,
-          installments: totalInstallments,
-          installmentNumber: nextInstallment,
+          installments:
+            payment.subscription.installments,
+          installmentNumber: 1,
           renewalCycle: nextRenewalCycle,
           installmentAmount: Number(
             payment.subscription.installmentAmount
