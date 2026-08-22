@@ -88,10 +88,11 @@ model User {
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 
-  businesses         Business[] @relation("BusinessOwner")
-  approvedBusinesses Business[] @relation("BusinessApprover")
-  clientProfiles     Client[]   @relation("ClientUser")
-  auditLogs          AuditLog[] @relation("AuditActor")
+  businesses          Business[]          @relation("BusinessOwner")
+  approvedBusinesses  Business[]          @relation("BusinessApprover")
+  clientProfiles      Client[]            @relation("ClientUser")
+  auditLogs           AuditLog[]          @relation("AuditActor")
+  yggdraTechContents  YggdraTechContent[] @relation("YggdraTechContentUpdater")
 
   @@map("users")
 }
@@ -349,6 +350,21 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model YggdraTechContent {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  content     Json
+  published   Boolean  @default(false)
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User? @relation("YggdraTechContentUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([published])
+  @@map("yggdratech_contents")
 }
 
 model PlatformPaymentOption {

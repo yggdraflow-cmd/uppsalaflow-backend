@@ -2,9 +2,15 @@ import { UserRole } from "@prisma/client";
 import { Router } from "express";
 
 import {
+  yggdraTechAboutImageUpload,
+  yggdraTechServiceImageUpload,
+} from "../../middlewares/upload.middleware";
+
+import {
   authMiddleware,
   requireRoles,
 } from "../../middlewares/auth.middleware";
+import { yggdraTechContentController } from "../yggdraTechContent/yggdraTechContent.controller";
 import { adminController } from "./admin.controller";
 
 export const adminRoutes = Router();
@@ -18,6 +24,48 @@ adminRoutes.get("/health", (request, response) => {
     area: "YggdraFlow Platform Admin",
   });
 });
+
+adminRoutes.get(
+  "/yggdratech/home",
+  yggdraTechContentController.getAdminHome
+);
+
+adminRoutes.put(
+  "/yggdratech/home",
+  yggdraTechContentController.updateHome
+);
+
+adminRoutes.post(
+  "/yggdratech/about/member-image",
+  yggdraTechAboutImageUpload.single("image"),
+  yggdraTechContentController.uploadMemberImage
+);
+
+adminRoutes.get(
+  "/yggdratech/about",
+  yggdraTechContentController.getAdminAbout
+);
+
+adminRoutes.put(
+  "/yggdratech/about",
+  yggdraTechContentController.updateAbout
+);
+
+adminRoutes.post(
+  "/yggdratech/services/image",
+  yggdraTechServiceImageUpload.single("image"),
+  yggdraTechContentController.uploadServiceImage
+);
+
+adminRoutes.get(
+  "/yggdratech/services",
+  yggdraTechContentController.getAdminServices
+);
+
+adminRoutes.put(
+  "/yggdratech/services",
+  yggdraTechContentController.updateServices
+);
 
 adminRoutes.get("/overview", adminController.overview);
 adminRoutes.get("/approvals", adminController.listApprovals);

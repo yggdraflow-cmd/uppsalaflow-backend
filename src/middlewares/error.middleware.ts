@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import multer from "multer";
+import { ZodError } from "zod";
 
 export class AppError extends Error {
   public statusCode: number;
@@ -19,6 +20,21 @@ export function errorMiddleware(
   if (error instanceof AppError) {
     return response.status(error.statusCode).json({
       message: error.message,
+    });
+  }
+
+  if (error instanceof ZodError) {
+    const firstIssue = error.issues[0];
+
+    return response.status(400).json({
+      message:
+        firstIssue?.message ||
+        "Os dados enviados são inválidos.",
+      field: firstIssue?.path.join(".") || null,
+      issues: error.issues.map((issue) => ({
+        field: issue.path.join("."),
+        message: issue.message,
+      })),
     });
   }
 
