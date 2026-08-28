@@ -34,3 +34,7 @@ export const adminTwoFactorLoginSchema = z.object({
     .trim()
     .regex(/^\d{6}$/, "Informe o código de 6 dígitos."),
 });
+
+export const emailVerificationSchema = z.object({
+  token: z.string().min(1, "Token de confirmação obrigatório."),
+});

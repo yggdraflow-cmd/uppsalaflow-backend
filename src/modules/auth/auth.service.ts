@@ -6,6 +6,11 @@ import { prisma } from "../../database/prisma";
 import { env } from "../../config/env";
 import { AppError } from "../../middlewares/error.middleware";
 import {
+  generateAuthToken,
+  hashAuthToken,
+} from "../../utils/authTokens";
+import { sendMail } from "../../utils/mail";
+import {
   decryptTwoFactorSecret,
   encryptTwoFactorSecret,
   generateTwoFactorSecret,
@@ -79,6 +84,7 @@ async function createUser(data: RegisterInput, role: UserRole) {
   }
 
   const passwordHash = await bcrypt.hash(data.password, 8);
+  const emailVerification = generateAuthToken();
 
   const user = await prisma.user.create({
     data: {
@@ -87,6 +93,10 @@ async function createUser(data: RegisterInput, role: UserRole) {
       phone: data.phone?.trim() || null,
       passwordHash,
       role,
+      emailVerificationTokenHash:
+        emailVerification.tokenHash,
+      emailVerificationExpiresAt:
+        emailVerification.expiresAt,
     },
     select: {
       id: true,
@@ -99,9 +109,40 @@ async function createUser(data: RegisterInput, role: UserRole) {
     },
   });
 
-  const token = createToken(user.id, user.role);
+  if (!env.frontendUrl) {
+    throw new AppError(
+      "A URL do frontend não está configurada.",
+      500
+    );
+  }
 
-  return { user, token };
+  const confirmationUrl =
+    `${env.frontendUrl}/confirm-email?token=${emailVerification.token}`;
+
+  await sendMail({
+    to: user.email,
+    subject: "Confirme seu e-mail no YggdraFlow",
+    text:
+      "Confirme seu e-mail acessando o link: " +
+      confirmationUrl,
+    html: `
+      <p>Olá, ${user.name}.</p>
+      <p>Confirme seu e-mail para ativar sua conta no YggdraFlow.</p>
+      <p>
+        <a href="${confirmationUrl}">
+          Confirmar meu e-mail
+        </a>
+      </p>
+      <p>Este link expira em 30 minutos.</p>
+    `,
+  });
+
+  return {
+    user,
+    requiresEmailVerification: true,
+    message:
+      "Cadastro realizado. Confirme seu e-mail para acessar o YggdraFlow.",
+  };
 }
 
 export const authService = {
@@ -131,6 +172,13 @@ export const authService = {
       throw new AppError(
         "Este e-mail já possui uma conta. Informe a senha atual dessa conta para acessar como cliente.",
         401
+      );
+    }
+
+    if (!existingUser.emailVerifiedAt) {
+      throw new AppError(
+        "Confirme seu e-mail antes de acessar como cliente.",
+        403
       );
     }
 
@@ -174,6 +222,7 @@ export const authService = {
       throw new AppError("E-mail ou senha inválidos.", 401);
     }
 
+
     const passwordMatches = await bcrypt.compare(
       data.password,
       user.passwordHash
@@ -181,6 +230,13 @@ export const authService = {
 
     if (!passwordMatches) {
       throw new AppError("E-mail ou senha inválidos.", 401);
+    }
+
+    if (!user.emailVerifiedAt) {
+      throw new AppError(
+        "Confirme seu e-mail antes de acessar sua conta.",
+        403
+      );
     }
 
     if (access === "ADMIN" && user.role !== UserRole.ADMIN) {
@@ -451,4 +507,51 @@ export const authService = {
 
     return updatedUser;
   },
+
+  async verifyEmail(token: string) {
+    const tokenHash = hashAuthToken(token);
+
+    const user = await prisma.user.findFirst({
+      where: {
+        emailVerificationTokenHash: tokenHash,
+      },
+      select: {
+        id: true,
+        emailVerificationExpiresAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new AppError(
+        "Token de confirmação inválido.",
+        400
+      );
+    }
+
+    if (
+      !user.emailVerificationExpiresAt ||
+      user.emailVerificationExpiresAt.getTime() < Date.now()
+    ) {
+      throw new AppError(
+        "Token de confirmação expirado.",
+        400
+      );
+    }
+
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        emailVerifiedAt: new Date(),
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+      },
+    });
+
+    return {
+      message: "E-mail confirmado com sucesso.",
+    };
+  },
+
 };

@@ -82,11 +82,16 @@ model User {
   profileImageUrl String?
   passwordHash             String
   role                     UserRole @default(OWNER)
-  twoFactorEnabled         Boolean  @default(false)
-  twoFactorSecretEncrypted String?
-  twoFactorEnabledAt       DateTime?
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  twoFactorEnabled               Boolean  @default(false)
+  twoFactorSecretEncrypted       String?
+  twoFactorEnabledAt             DateTime?
+  emailVerifiedAt                DateTime?
+  emailVerificationTokenHash     String?
+  emailVerificationExpiresAt     DateTime?
+  passwordResetTokenHash         String?
+  passwordResetExpiresAt         DateTime?
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
 
   businesses          Business[]          @relation("BusinessOwner")
   approvedBusinesses  Business[]          @relation("BusinessApprover")

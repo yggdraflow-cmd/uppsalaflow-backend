@@ -28,6 +28,11 @@ authRoutes.post(
   authController.verifyAdminTwoFactorLogin
 );
 
+authRoutes.post(
+  "/verify-email",
+  authController.verifyEmail
+);
+
 authRoutes.post("/login", authController.login);
 
 authRoutes.post(

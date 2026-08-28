@@ -6,6 +6,7 @@ import { authService } from "./auth.service";
 import {
   adminTwoFactorLoginSchema,
   clientRegisterSchema,
+  emailVerificationSchema,
   loginSchema,
   registerSchema,
   twoFactorCodeSchema,
@@ -35,6 +36,19 @@ export const authController = {
     const result = await authService.registerClient(data);
 
     return response.status(201).json(result);
+  },
+
+  async verifyEmail(
+    request: AuthRequest,
+    response: Response
+  ) {
+    const { token } = emailVerificationSchema.parse(
+      request.body
+    );
+
+    const result = await authService.verifyEmail(token);
+
+    return response.json(result);
   },
 
   async login(request: AuthRequest, response: Response) {
