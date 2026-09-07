@@ -508,6 +508,198 @@ export const authService = {
     return updatedUser;
   },
 
+  async forgotPassword(email: string) {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const genericResponse = {
+      message:
+        "Se existir uma conta com este e-mail, enviaremos as instruções para redefinir a senha.",
+    };
+
+    const user = await prisma.user.findUnique({
+      where: {
+        email: normalizedEmail,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+
+    if (!user) {
+      return genericResponse;
+    }
+
+    if (!env.frontendUrl) {
+      throw new AppError(
+        "A URL do frontend não está configurada.",
+        500
+      );
+    }
+
+    const passwordReset = generateAuthToken();
+
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        passwordResetTokenHash:
+          passwordReset.tokenHash,
+        passwordResetExpiresAt:
+          passwordReset.expiresAt,
+      },
+    });
+
+    const resetUrl =
+      `${env.frontendUrl}/reset-password?token=${passwordReset.token}`;
+
+    await sendMail({
+      to: user.email,
+      subject: "Redefinição de senha do YggdraFlow",
+      text:
+        "Para redefinir sua senha, acesse: " +
+        resetUrl,
+      html: `
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+          <body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:32px 16px;">
+              <tr>
+                <td align="center">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
+                    <tr>
+                      <td style="padding:28px 32px 20px;text-align:center;border-bottom:1px solid #eef0f2;">
+                        <div style="font-size:24px;font-weight:700;color:#111827;">
+                          YggdraFlow
+                        </div>
+                        <div style="margin-top:6px;font-size:13px;color:#6b7280;">
+                          Gestão inteligente para negócios com atendimento agendado
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td style="padding:32px;">
+                        <h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;color:#111827;">
+                          Redefinição de senha
+                        </h1>
+
+                        <p style="margin:0 0 16px;font-size:16px;line-height:1.6;">
+                          Olá, <strong>${user.name}</strong>.
+                        </p>
+
+                        <p style="margin:0 0 24px;font-size:15px;line-height:1.7;color:#4b5563;">
+                          Recebemos uma solicitação para redefinir a senha da sua conta no YggdraFlow.
+                          Clique no botão abaixo para criar uma nova senha.
+                        </p>
+
+                        <table cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px;">
+                          <tr>
+                            <td align="center">
+                              <a
+                                href="${resetUrl}"
+                                style="display:inline-block;padding:14px 26px;background:#111827;color:#ffffff;text-decoration:none;border-radius:10px;font-size:15px;font-weight:700;"
+                              >
+                                Redefinir minha senha
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+
+                        <div style="padding:16px;background:#f9fafb;border-radius:10px;margin-bottom:24px;">
+                          <p style="margin:0;font-size:14px;line-height:1.6;color:#4b5563;">
+                            Por segurança, este link expira em <strong>30 minutos</strong> e só pode ser utilizado uma vez.
+                          </p>
+                        </div>
+
+                        <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#6b7280;">
+                          Se você não solicitou esta redefinição, ignore este e-mail. Sua senha continuará a mesma.
+                        </p>
+
+                        <p style="margin:24px 0 8px;font-size:12px;color:#9ca3af;">
+                          Se o botão não funcionar, copie e cole este endereço no navegador:
+                        </p>
+
+                        <p style="margin:0;font-size:12px;line-height:1.5;word-break:break-all;">
+                          <a href="${resetUrl}" style="color:#4b5563;">
+                            ${resetUrl}
+                          </a>
+                        </p>
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td style="padding:20px 32px;text-align:center;background:#fafafa;border-top:1px solid #eef0f2;">
+                        <p style="margin:0;font-size:12px;color:#9ca3af;">
+                          Este é um e-mail automático do YggdraFlow.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+        </html>
+      `,
+    });
+
+    return genericResponse;
+  },
+
+  async resetPassword(
+    token: string,
+    password: string
+  ) {
+    const tokenHash = hashAuthToken(token);
+
+    const user = await prisma.user.findFirst({
+      where: {
+        passwordResetTokenHash: tokenHash,
+      },
+      select: {
+        id: true,
+        passwordResetExpiresAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new AppError(
+        "Token de recuperação inválido.",
+        400
+      );
+    }
+
+    if (
+      !user.passwordResetExpiresAt ||
+      user.passwordResetExpiresAt.getTime() < Date.now()
+    ) {
+      throw new AppError(
+        "Token de recuperação expirado.",
+        400
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(password, 8);
+
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        passwordHash,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+      },
+    });
+
+    return {
+      message: "Senha redefinida com sucesso.",
+    };
+  },
+
   async verifyEmail(token: string) {
     const tokenHash = hashAuthToken(token);
 

@@ -7,8 +7,10 @@ import {
   adminTwoFactorLoginSchema,
   clientRegisterSchema,
   emailVerificationSchema,
+  forgotPasswordSchema,
   loginSchema,
   registerSchema,
+  resetPasswordSchema,
   twoFactorCodeSchema,
 } from "./auth.validations";
 
@@ -36,6 +38,34 @@ export const authController = {
     const result = await authService.registerClient(data);
 
     return response.status(201).json(result);
+  },
+
+  async forgotPassword(
+    request: AuthRequest,
+    response: Response
+  ) {
+    const { email } = forgotPasswordSchema.parse(
+      request.body
+    );
+
+    const result = await authService.forgotPassword(email);
+
+    return response.json(result);
+  },
+
+  async resetPassword(
+    request: AuthRequest,
+    response: Response
+  ) {
+    const { token, password } =
+      resetPasswordSchema.parse(request.body);
+
+    const result = await authService.resetPassword(
+      token,
+      password
+    );
+
+    return response.json(result);
   },
 
   async verifyEmail(

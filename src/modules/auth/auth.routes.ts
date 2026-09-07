@@ -29,6 +29,16 @@ authRoutes.post(
 );
 
 authRoutes.post(
+  "/forgot-password",
+  authController.forgotPassword
+);
+
+authRoutes.post(
+  "/reset-password",
+  authController.resetPassword
+);
+
+authRoutes.post(
   "/verify-email",
   authController.verifyEmail
 );

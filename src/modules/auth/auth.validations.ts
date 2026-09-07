@@ -38,3 +38,14 @@ export const adminTwoFactorLoginSchema = z.object({
 export const emailVerificationSchema = z.object({
   token: z.string().min(1, "Token de confirmação obrigatório."),
 });
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("E-mail inválido."),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Token de recuperação obrigatório."),
+  password: z
+    .string()
+    .min(6, "A senha deve ter pelo menos 6 caracteres."),
+});
