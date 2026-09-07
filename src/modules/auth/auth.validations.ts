@@ -41,6 +41,7 @@ export const emailVerificationSchema = z.object({
 
 export const forgotPasswordSchema = z.object({
   email: z.string().email("E-mail inválido."),
+  mode: z.enum(["business", "client"]).default("business"),
 });
 
 export const resetPasswordSchema = z.object({

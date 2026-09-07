@@ -44,11 +44,14 @@ export const authController = {
     request: AuthRequest,
     response: Response
   ) {
-    const { email } = forgotPasswordSchema.parse(
+    const { email, mode } = forgotPasswordSchema.parse(
       request.body
     );
 
-    const result = await authService.forgotPassword(email);
+    const result = await authService.forgotPassword(
+      email,
+      mode
+    );
 
     return response.json(result);
   },
