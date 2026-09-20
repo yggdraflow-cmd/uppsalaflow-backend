@@ -27,7 +27,7 @@ type BusinessInput = {
   email?: string;
   address?: string;
   category?: string;
-  slug: string;
+  slug?: string;
   segment?: BusinessSegment;
   specialty?: BusinessSpecialty | null;
 };
@@ -36,6 +36,62 @@ type BusinessSegmentInput = {
   segment: BusinessSegment;
   specialty?: BusinessSpecialty | null;
 };
+
+function normalizeSlug(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "")
+    .slice(0, 60);
+}
+
+function buildSlugCandidate(baseSlug: string, suffix: number) {
+  if (suffix === 1) {
+    return baseSlug;
+  }
+
+  const suffixText = `-${suffix}`;
+  const availableBaseLength = 60 - suffixText.length;
+
+  return `${baseSlug.slice(0, availableBaseLength)}${suffixText}`;
+}
+
+async function generateUniqueSlug(name: string) {
+  const baseSlug = normalizeSlug(name);
+
+  if (!baseSlug) {
+    throw new AppError(
+      "O nome do negócio não permite gerar uma URL pública válida.",
+      400
+    );
+  }
+
+  let suffix = 1;
+
+  while (true) {
+    const candidate = buildSlugCandidate(baseSlug, suffix);
+
+    const existingBusiness = await prisma.business.findFirst({
+      where: {
+        slug: {
+          equals: candidate,
+          mode: "insensitive",
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!existingBusiness) {
+      return candidate;
+    }
+
+    suffix += 1;
+  }
+}
 
 function normalizeSegmentData(data: BusinessSegmentInput) {
   if (data.segment === "BEAUTY" && !data.specialty) {
@@ -64,17 +120,12 @@ const businessRelations = {
 
 export const businessesService = {
   async create(ownerId: string, data: BusinessInput) {
-    const slugAlreadyExists = await prisma.business.findUnique({
-      where: { slug: data.slug },
-    });
-
-    if (slugAlreadyExists) {
-      throw new AppError("Este slug já está em uso.", 409);
-    }
+    const slug = await generateUniqueSlug(data.name);
 
     return prisma.business.create({
       data: {
         ...data,
+        slug,
         ownerId,
         status: CompanyStatus.PENDING,
         statusReason: "Aguardando escolha do plano.",
@@ -92,10 +143,13 @@ export const businessesService = {
     });
 
     const billingEntries = await Promise.all(
-      businessIds.map(async (business) => [
-        business.id,
-        await synchronizeBusinessBilling(business.id),
-      ] as const)
+      businessIds.map(
+        async (business) =>
+          [
+            business.id,
+            await synchronizeBusinessBilling(business.id),
+          ] as const
+      )
     );
 
     const billingByBusinessId = new Map(billingEntries);
@@ -124,8 +178,7 @@ export const businessesService = {
       throw new AppError("Negócio não encontrado.", 404);
     }
 
-    const billing =
-      await synchronizeBusinessBilling(businessId);
+    const billing = await synchronizeBusinessBilling(businessId);
 
     const business = await prisma.business.findUnique({
       where: { id: businessId },
