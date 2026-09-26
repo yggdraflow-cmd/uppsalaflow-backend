@@ -33,6 +33,7 @@ type ChangeBusinessStatusInput = BusinessActionInput & {
   clearApproval?: boolean;
   setApproval?: boolean;
   requireValidSubscription?: boolean;
+  allowMissingSubscriptionForAdditionalBusiness?: boolean;
 };
 
 const paymentAttentionStatuses: SubscriptionStatus[] = [
@@ -164,6 +165,7 @@ async function changeBusinessStatus(input: ChangeBusinessStatusInput) {
       },
       select: {
         id: true,
+        ownerId: true,
         status: true,
         statusReason: true,
         approvedById: true,
@@ -205,30 +207,57 @@ async function changeBusinessStatus(input: ChangeBusinessStatusInput) {
 
     if (input.requireValidSubscription) {
       if (!business.subscription) {
-        throw new AppError(
-          "A empresa não possui uma assinatura cadastrada.",
-          409
-        );
-      }
+        const activeOwnerBusiness =
+          input.allowMissingSubscriptionForAdditionalBusiness
+            ? await transaction.business.findFirst({
+                where: {
+                  ownerId: business.ownerId,
+                  id: {
+                    not: business.id,
+                  },
+                  status: CompanyStatus.ACTIVE,
+                },
+                select: {
+                  id: true,
+                  subscription: {
+                    select: {
+                      status: true,
+                    },
+                  },
+                },
+              })
+            : null;
 
-      const isFreePlan =
-        business.subscription.plan === SubscriptionPlan.FREE;
+        const canApproveAdditionalBusiness =
+          activeOwnerBusiness?.subscription?.status ===
+          SubscriptionStatus.ACTIVE;
 
-      if (
-        !isFreePlan &&
-        business.subscription.status !== SubscriptionStatus.ACTIVE
-      ) {
-        throw new AppError(
-          "A assinatura da empresa não está ativa.",
-          409
-        );
-      }
+        if (!canApproveAdditionalBusiness) {
+          throw new AppError(
+            "A empresa não possui uma assinatura cadastrada.",
+            409
+          );
+        }
+      } else {
+        const isFreePlan =
+          business.subscription.plan === SubscriptionPlan.FREE;
 
-      if (!isFreePlan && business.payments.length === 0) {
-        throw new AppError(
-          "Não existe pagamento confirmado para esta empresa.",
-          409
-        );
+        if (
+          !isFreePlan &&
+          business.subscription.status !== SubscriptionStatus.ACTIVE
+        ) {
+          throw new AppError(
+            "A assinatura da empresa não está ativa.",
+            409
+          );
+        }
+
+        if (!isFreePlan && business.payments.length === 0) {
+          throw new AppError(
+            "Não existe pagamento confirmado para esta empresa.",
+            409
+          );
+        }
       }
     }
 
@@ -552,9 +581,10 @@ export const adminService = {
       ...input,
       action: "BUSINESS_APPROVED",
       targetStatus: CompanyStatus.ACTIVE,
-      allowedStatuses: approvalQueueStatuses,
+      allowedStatuses: [CompanyStatus.UNDER_REVIEW],
       setApproval: true,
       requireValidSubscription: true,
+      allowMissingSubscriptionForAdditionalBusiness: true,
     });
   },
 
