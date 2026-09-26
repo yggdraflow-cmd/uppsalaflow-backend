@@ -216,21 +216,20 @@ async function changeBusinessStatus(input: ChangeBusinessStatusInput) {
                     not: business.id,
                   },
                   status: CompanyStatus.ACTIVE,
+                  subscription: {
+                    is: {
+                      status: SubscriptionStatus.ACTIVE,
+                    },
+                  },
                 },
                 select: {
                   id: true,
-                  subscription: {
-                    select: {
-                      status: true,
-                    },
-                  },
                 },
               })
             : null;
 
         const canApproveAdditionalBusiness =
-          activeOwnerBusiness?.subscription?.status ===
-          SubscriptionStatus.ACTIVE;
+          Boolean(activeOwnerBusiness);
 
         if (!canApproveAdditionalBusiness) {
           throw new AppError(
