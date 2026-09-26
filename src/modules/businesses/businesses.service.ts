@@ -122,13 +122,29 @@ export const businessesService = {
   async create(ownerId: string, data: BusinessInput) {
     const slug = await generateUniqueSlug(data.name);
 
+    const activeBusiness = await prisma.business.findFirst({
+      where: {
+        ownerId,
+        status: CompanyStatus.ACTIVE,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const isAdditionalBusiness = Boolean(activeBusiness);
+
     return prisma.business.create({
       data: {
         ...data,
         slug,
         ownerId,
-        status: CompanyStatus.PENDING,
-        statusReason: "Aguardando escolha do plano.",
+        status: isAdditionalBusiness
+          ? CompanyStatus.UNDER_REVIEW
+          : CompanyStatus.PENDING,
+        statusReason: isAdditionalBusiness
+          ? "Aguardando aprovação do administrador."
+          : "Aguardando escolha do plano.",
       },
       include: businessRelations,
     });
